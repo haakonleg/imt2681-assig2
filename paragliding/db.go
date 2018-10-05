@@ -8,13 +8,14 @@ import (
 
 // Db is the database context
 type Db struct {
+	mongoURL string
 	client   *mongo.Client
 	database *mongo.Database
 }
 
 // CreateConnection creates a connection to the mongoDB server
-func (db *Db) CreateConnection(mongoURL string) error {
-	client, err := mongo.Connect(context.Background(), mongoURL, nil)
+func (db *Db) CreateConnection() error {
+	client, err := mongo.Connect(context.Background(), db.mongoURL, nil)
 	if err != nil {
 		return err
 	}
