@@ -1,10 +1,19 @@
 package paragliding
 
 import (
-	"github.com/marni/goigc"
+	"fmt"
+	"log"
 )
 
-func StartServer() {
-	s := "http://skypolaris.org/wp-content/uploads/IGS%20Files/Madrid%20to%20Jerez.igc"
-	track, err := igc.ParseLocation(s)
+// Database
+var db Db
+
+func StartServer(mongoUrl string) {
+	// Connect to database
+	err := db.CreateConnection(mongoUrl)
+	if err != nil {
+		log.Fatal(err.Error())
+	} else {
+		fmt.Println("Connected to mongoDB")
+	}
 }
