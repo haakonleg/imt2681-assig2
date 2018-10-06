@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"regexp"
 	"strings"
 )
 
@@ -33,9 +32,15 @@ func (app *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get path
-	match := regexp.MustCompile("^([^/]+)").FindStringSubmatch(path)
-	switch match[0] {
+	// Get next path
+	var nextpath string
+	if i := strings.Index(path, "/"); i == -1 {
+		nextpath = path
+	} else {
+		nextpath = path[:i]
+	}
+
+	switch nextpath {
 	case "track":
 		handleTrackRequest(&req, &app.db, path)
 	case "ticker":

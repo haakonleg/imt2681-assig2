@@ -163,15 +163,17 @@ func handleTrackRequest(req *Request, db *Database, path string) {
 	}
 
 	// GET /api/track/{id}
-	if match := regexp.MustCompile("^track/([a-z0-9]{24})[/]?$").FindStringSubmatch(path); match != nil {
-		getTrack(req, db, match[1])
-		return
-	}
+	if req.r.Method == "GET" {
+		if match := regexp.MustCompile("^track/([a-z0-9]{24})[/]?$").FindStringSubmatch(path); match != nil {
+			getTrack(req, db, match[1])
+			return
+		}
 
-	// GET track/{id}/{field}
-	if match := regexp.MustCompile("^track/([a-z0-9]{24})/([a-zA-Z_]+)[/]?$").FindStringSubmatch(path); match != nil {
-		getTrackField(req, db, match[1], match[2])
-		return
+		// GET track/{id}/{field}
+		if match := regexp.MustCompile("^track/([a-z0-9]{24})/([a-zA-Z_]+)[/]?$").FindStringSubmatch(path); match != nil {
+			getTrackField(req, db, match[1], match[2])
+			return
+		}
 	}
 
 	http.NotFound(req.w, req.r)
