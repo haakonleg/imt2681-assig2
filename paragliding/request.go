@@ -2,44 +2,33 @@ package paragliding
 
 import (
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 )
 
-type ResponseType int
-type HTTPMethod int
-
-const (
-	JSON ResponseType = 0
-	TEXT ResponseType = 1
-
-	UNKNOWN HTTPMethod = 0
-	GET     HTTPMethod = 1
-	POST    HTTPMethod = 2
-)
-
+// Request contains the context of the HTTP request, it also has some helper methods
 type Request struct {
 	w http.ResponseWriter
 	r *http.Request
 }
 
-func (req *Request) SetResponseType(responseType ResponseType) {
+type responseType int
+
+const (
+	JSON responseType = iota
+	TEXT
+)
+
+// SetResponseType sets the response type of the HTTP response
+func (req *Request) SetResponseType(responseType responseType) {
 	switch responseType {
 	case JSON:
 		req.w.Header().Set("Content-Type", "application/json")
 	case TEXT:
 		req.w.Header().Set("Content-Type", "text/plain")
 	}
-}
-
-func (req *Request) GetMethod() HTTPMethod {
-	switch req.r.Method {
-	case "GET":
-		return GET
-	case "POST":
-		return POST
-	}
-	return UNKNOWN
 }
 
 // SendJSON sends a json response, parameter jsonStruct is a struct
@@ -51,4 +40,36 @@ func (req *Request) SendJSON(jsonStruct interface{}) {
 		log.Fatal(err)
 	}
 	req.w.Write(res)
+}
+
+// SendText sends a plain text message as response to the request
+func (req *Request) SendText(text string) {
+	req.SetResponseType(TEXT)
+	fmt.Fprint(req.w, text)
+}
+
+// ParseJSONRequest parses the JSON contents of a POST request, takes
+// a struct as parameter with JSON fields and writes the contents to it
+func (req *Request) ParseJSONRequest(jsonStruct interface{}) error {
+	body, err := ioutil.ReadAll(req.r.Body)
+	defer req.r.Body.Close()
+
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	err = json.Unmarshal(body, jsonStruct)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	return nil
+}
+
+// SendError sends a JSON error message in response to the request in case an error occured
+func (req *Request) SendError(message string, statusCode int) {
+	req.SetResponseType(JSON)
+	http.Error(req.w, "{\"error\":\""+message+"\"}", statusCode)
 }

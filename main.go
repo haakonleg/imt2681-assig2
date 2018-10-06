@@ -7,13 +7,15 @@ import (
 	"github.com/haakonleg/imt2681-assig2/paragliding"
 )
 
+// API config
 const dbUser = "testuser1"
 const dbPass = "testpass1"
 const mongoURL = "mongodb://<dbuser>:<dbpassword>@ds223063.mlab.com:23063/imt2681-assig2"
+const dbName = "imt2681-assig2"
 
 const defaultPort = "8080"
 
-// Main starts the paragliding server by supplying the mongodb connection URL
+// Main starts the paragliding server by supplying the configuration options to the App object
 func main() {
 	url := strings.Replace(mongoURL, "<dbuser>", dbUser, 1)
 	url = strings.Replace(url, "<dbpassword>", dbPass, 1)
@@ -24,5 +26,7 @@ func main() {
 		port = defaultPort
 	}
 
-	paragliding.StartServer(url, port)
+	// Configure and start the API
+	app := paragliding.App{MongoURL: url, ListenPort: port, DBName: dbName}
+	app.StartServer()
 }

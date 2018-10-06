@@ -4,48 +4,66 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"regexp"
 	"strings"
 )
 
-const rootPath = "/paragliding/"
-const apiPath = "/paragliding/api/"
+const (
+	rootPath = "/paragliding/"
+	apiPath  = "/paragliding/api/"
+)
 
-// Routes the request to handlers
-func routeRequest(db *Db) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Get routes
-		route := strings.TrimPrefix(r.URL.Path, apiPath)
-		req := Request{w, r}
+// App must be instantiated with the url to the mongodb database, database name and the port for the API to listen on
+type App struct {
+	MongoURL   string
+	DBName     string
+	ListenPort string
 
-		// GET /api, this is just the base API path
-		if len(route) == 0 && req.GetMethod() == GET {
-			ApiInfo(&req)
-			return
-		}
-
-		http.NotFound(w, r)
-	})
+	db Database
 }
 
-func StartServer(mongoUrl string, port string) {
-	// Connect to database
-	db := Db{mongoURL: mongoUrl}
-	err := db.CreateConnection()
-	if err != nil {
-		log.Fatal(err.Error())
+// Route the API request to handlers
+func (app *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	req := Request{w, r}
+	path := strings.TrimPrefix(r.URL.Path, apiPath)
+
+	// GET /api
+	if len(path) == 0 && req.r.Method == "GET" {
+		ApiInfo(&req)
+		return
+	}
+
+	// Get path
+	match := regexp.MustCompile("^([^/]+)").FindStringSubmatch(path)
+	switch match[0] {
+	case "track":
+		handleTrackRequest(&req, &app.db, path)
+	case "ticker":
+	case "webhook":
+	case "admin":
+	default:
+		http.NotFound(req.w, req.r)
+	}
+}
+
+// StartServer starts listening and serving the API server
+func (app *App) StartServer() {
+	// Try connect to mongoDB
+	app.db = Database{MongoURL: app.MongoURL, DBName: app.DBName}
+	if err := app.db.createConnection(); err != nil {
+		log.Fatal(err)
 	} else {
 		fmt.Println("Connected to mongoDB")
 	}
 
-	// Handle routes
+	// Configure redirect and 404 not found handler, and direct requests to the API path to the handler
 	http.Handle("/", http.NotFoundHandler())
 	http.Handle(rootPath, http.RedirectHandler(apiPath, 301))
-	http.Handle(apiPath, routeRequest(&db))
+	http.Handle(apiPath, app)
 
 	// Start listen
-	fmt.Printf("Server listening on port %s\n", port)
-	err = http.ListenAndServe(":"+port, nil)
-	if err != nil {
+	fmt.Printf("Server listening on port %s\n", app.ListenPort)
+	if err := http.ListenAndServe(":"+app.ListenPort, nil); err != nil {
 		log.Fatal(err.Error())
 	}
 }
