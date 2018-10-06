@@ -15,17 +15,19 @@ type Track struct {
 	Glider      string            `bson:"glider" json:"glider"`
 	GliderID    string            `bson:"glider_id" json:"glider_id"`
 	TrackLength string            `bson:"track_length" json:"track_length"`
+	TrackSrcURL string            `bson:"track_src_url" json:"track_src_url"`
 }
 
 // Creates a new track object out of a parsed IGC track from goigc
-func createTrack(igc *igc.Track) Track {
+func createTrack(igc *igc.Track, url string) Track {
 	return Track{
 		ID:          objectid.New(),
 		HDate:       igc.Date.String(),
 		Pilot:       igc.Pilot,
 		Glider:      igc.GliderType,
 		GliderID:    igc.GliderID,
-		TrackLength: calTrackLen(&igc.Points).String()}
+		TrackLength: calTrackLen(&igc.Points).String(),
+		TrackSrcURL: url}
 }
 
 // Calculate track length, time of last point subtracted by time of first

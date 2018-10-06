@@ -1,6 +1,7 @@
 package paragliding
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -8,11 +9,44 @@ import (
 	"regexp"
 	"strings"
 
+	igc "github.com/marni/goigc"
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/bson/objectid"
-
-	igc "github.com/marni/goigc"
 )
+
+// Retrieves a track from the database by its objectID (hex string)
+func getTrackByID(db *Database, id string) (*Track, error) {
+	objectID, err := objectid.FromHex(id)
+	if err != nil {
+		return nil, err
+	}
+
+	filter := bson.NewDocument(bson.EC.ObjectID("_id", objectID))
+	tracks, err := db.findTracks(filter)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(tracks) < 1 {
+		return nil, errors.New("Track doesn't exist in database")
+	}
+
+	// Wtf, why is this even possible
+	return &tracks[0], nil
+}
+
+// Ensures that a link points to an IGC resource (but just that it is a valid URL and has an igc extension)
+func ensureIGCLink(link string) bool {
+	if _, err := url.ParseRequestURI(link); err != nil {
+		return false
+	}
+
+	ext := strings.ToLower(path.Ext(link))
+	if ext != ".igc" {
+		return false
+	}
+	return true
+}
 
 // GET /api/track
 // Returns an array of IDs of all tracks stored in the database
@@ -36,24 +70,41 @@ func getAllTracks(req *Request, db *Database) {
 // GET /api/track/{id}
 // Retrieves a track by the value of its ObjectID (hex encoded string)
 func getTrack(req *Request, db *Database, id string) {
-	objectID, err := objectid.FromHex(id)
+	track, err := getTrackByID(db, id)
+	if err != nil {
+		req.SendError("Invalid ID", http.StatusBadRequest)
+		return
+	}
+	req.SendJSON(track, http.StatusOK)
+}
+
+// GET /api/track/{id}/{field}
+func getTrackField(req *Request, db *Database, id string, field string) {
+	track, err := getTrackByID(db, id)
 	if err != nil {
 		req.SendError("Invalid ID", http.StatusBadRequest)
 		return
 	}
 
-	filter := bson.NewDocument(bson.EC.ObjectID("_id", objectID))
-	tracks, err := db.findTracks(filter)
-	if err != nil {
-		req.SendError("Internal database error", http.StatusInternalServerError)
-		return
+	var resValue string
+	switch field {
+	case "pilot":
+		resValue = track.Pilot
+	case "glider":
+		resValue = track.Glider
+	case "glider_id":
+		resValue = track.GliderID
+	case "track_length":
+		resValue = track.TrackLength
+	case "H_date":
+		resValue = track.HDate
+	case "track_src_url":
+		resValue = track.TrackSrcURL
+	default:
+		http.NotFound(req.w, req.r)
 	}
 
-	if len(tracks) < 1 {
-		req.SendError("Invalid ID", http.StatusBadRequest)
-		return
-	}
-	req.SendJSON(&tracks[0], http.StatusOK)
+	req.SendText(resValue)
 }
 
 // POST /api/track
@@ -84,7 +135,7 @@ func registerTrack(req *Request, db *Database) {
 	}
 
 	// Send response containing the ID to the inserted track
-	newTrack := createTrack(&igc)
+	newTrack := createTrack(&igc, request.URL)
 
 	id, err := db.insertObject(newTrack, TRACKS)
 	if err != nil {
@@ -98,22 +149,9 @@ func registerTrack(req *Request, db *Database) {
 	req.SendJSON(&response, http.StatusOK)
 }
 
-// Ensures that a link points to an IGC resource (but just that it is a valid URL and has an igc extension)
-func ensureIGCLink(link string) bool {
-	if _, err := url.ParseRequestURI(link); err != nil {
-		return false
-	}
-
-	ext := strings.ToLower(path.Ext(link))
-	if ext != ".igc" {
-		return false
-	}
-	return true
-}
-
 // Routes the /track request to handlers
 func handleTrackRequest(req *Request, db *Database, path string) {
-	// GET /api/track and POST /api/track
+	// GET/POST /api/track
 	if match, _ := regexp.MatchString("^track[/]?$", path); match {
 		switch req.r.Method {
 		case "GET":
@@ -125,9 +163,14 @@ func handleTrackRequest(req *Request, db *Database, path string) {
 	}
 
 	// GET /api/track/{id}
-	// The objectid in mongodb is 24 characters long
 	if match := regexp.MustCompile("^track/([a-z0-9]{24})[/]?$").FindStringSubmatch(path); match != nil {
 		getTrack(req, db, match[1])
+		return
+	}
+
+	// GET track/{id}/{field}
+	if match := regexp.MustCompile("^track/([a-z0-9]{24})/([a-zA-Z_]+)[/]?$").FindStringSubmatch(path); match != nil {
+		getTrackField(req, db, match[1], match[2])
 		return
 	}
 
