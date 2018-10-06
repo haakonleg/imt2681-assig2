@@ -8,6 +8,9 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/mongodb/mongo-go-driver/bson"
+	"github.com/mongodb/mongo-go-driver/bson/objectid"
+
 	igc "github.com/marni/goigc"
 )
 
@@ -28,6 +31,28 @@ func getAllTracks(req *Request, db *Database) {
 	}
 
 	req.SendJSON(&ids, http.StatusOK)
+}
+
+// GET /api/track/{id}
+// Retrieves a track by the value of its ObjectID (hex encoded string)
+func getTrack(req *Request, db *Database, id string) {
+	objectID, err := objectid.FromHex(id)
+	if err != nil {
+		req.SendError("Invalid ID", http.StatusBadRequest)
+		return
+	}
+
+	filter := bson.NewDocument(bson.EC.ObjectID("_id", objectID))
+	tracks, err := db.findTracks(filter)
+	if err != nil {
+		req.SendError("Internal database error", http.StatusInternalServerError)
+		return
+	}
+
+	if len(tracks) < 1 {
+		req.SendError("Invalid ID", http.StatusBadRequest)
+	}
+	req.SendJSON(&tracks[0], http.StatusOK)
 }
 
 // POST /api/track
@@ -88,13 +113,20 @@ func ensureIGCLink(link string) bool {
 // Routes the /track request to handlers
 func handleTrackRequest(req *Request, db *Database, path string) {
 	// GET /api/track and POST /api/track
-	if match, _ := regexp.MatchString("track[/]?$", path); match {
+	if match, _ := regexp.MatchString("^track[/]?$", path); match {
 		switch req.r.Method {
 		case "GET":
 			getAllTracks(req, db)
 		case "POST":
 			registerTrack(req, db)
 		}
+		return
+	}
+
+	// GET /api/track/{id}
+	// The objectid in mongodb is 24 characters long
+	if match := regexp.MustCompile("^track/([a-z0-9]{24})[/]?$").FindStringSubmatch(path); match != nil {
+		getTrack(req, db, match[1])
 		return
 	}
 
