@@ -7,27 +7,25 @@ import (
 	"github.com/mongodb/mongo-go-driver/bson/objectid"
 )
 
-// Model of track stored in database
-type track struct {
+// Track is the model of IGC tracks stored in database
+type Track struct {
 	ID          objectid.ObjectID `bson:"_id"`
-	HDate       string            `json:"H_Date"`
-	Pilot       string            `json:"pilot"`
-	Glider      string            `json:"glider"`
-	GliderID    string            `json:"glider_id"`
-	TrackLength string            `json:"track_length"`
+	HDate       string            `bson:"H_date" json:"H_Date"`
+	Pilot       string            `bson:"pilot" json:"pilot"`
+	Glider      string            `bson:"glider" json:"glider"`
+	GliderID    string            `bson:"glider_id" json:"glider_id"`
+	TrackLength string            `bson:"track_length" json:"track_length"`
 }
 
 // Creates a new track object out of a parsed IGC track from goigc
-func createTrack(igc *igc.Track) track {
-	var newTrack track
-
-	newTrack.ID = objectid.New()
-	newTrack.HDate = igc.Date.String()
-	newTrack.Pilot = igc.Pilot
-	newTrack.Glider = igc.GliderType
-	newTrack.GliderID = igc.GliderID
-	newTrack.TrackLength = calTrackLen(&igc.Points).String()
-	return newTrack
+func createTrack(igc *igc.Track) Track {
+	return Track{
+		ID:          objectid.New(),
+		HDate:       igc.Date.String(),
+		Pilot:       igc.Pilot,
+		Glider:      igc.GliderType,
+		GliderID:    igc.GliderID,
+		TrackLength: calTrackLen(&igc.Points).String()}
 }
 
 // Calculate track length, time of last point subtracted by time of first

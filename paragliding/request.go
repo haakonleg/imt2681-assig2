@@ -33,12 +33,13 @@ func (req *Request) SetResponseType(responseType responseType) {
 
 // SendJSON sends a json response, parameter jsonStruct is a struct
 // that contains the json fields
-func (req *Request) SendJSON(jsonStruct interface{}) {
+func (req *Request) SendJSON(jsonStruct interface{}, statusCode int) {
 	req.SetResponseType(JSON)
 	res, err := json.Marshal(jsonStruct)
 	if err != nil {
 		log.Fatal(err)
 	}
+	req.w.WriteHeader(statusCode)
 	req.w.Write(res)
 }
 
@@ -70,6 +71,8 @@ func (req *Request) ParseJSONRequest(jsonStruct interface{}) error {
 
 // SendError sends a JSON error message in response to the request in case an error occured
 func (req *Request) SendError(message string, statusCode int) {
-	req.SetResponseType(JSON)
-	http.Error(req.w, "{\"error\":\""+message+"\"}", statusCode)
+	err := struct {
+		Error string `json:"error"`
+	}{Error: message}
+	req.SendJSON(&err, statusCode)
 }

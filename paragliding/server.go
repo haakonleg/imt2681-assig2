@@ -29,7 +29,7 @@ func (app *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// GET /api
 	if len(path) == 0 && req.r.Method == "GET" {
-		ApiInfo(&req)
+		sendAPIInfo(&req)
 		return
 	}
 

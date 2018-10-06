@@ -2,6 +2,7 @@ package paragliding
 
 import (
 	"fmt"
+	"net/http"
 	"time"
 )
 
@@ -14,9 +15,9 @@ type apiInfo struct {
 }
 
 // Send API info
-func ApiInfo(req *Request) {
-	infoJSON := &apiInfo{uptime(), "Service for Paragliding tracks.", "v1"}
-	req.SendJSON(infoJSON)
+func sendAPIInfo(req *Request) {
+	info := &apiInfo{uptime(), "Service for Paragliding tracks.", "v1"}
+	req.SendJSON(info, http.StatusOK)
 }
 
 // uptime returns the app uptime in ISO 8601 duration format

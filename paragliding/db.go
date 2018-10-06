@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/mongo"
 )
 
@@ -44,12 +45,34 @@ func (db *Database) createConnection() error {
 	return nil
 }
 
-func (db *Database) insertObject(object interface{}, col databaseCollection) error {
+func (db *Database) insertObject(object interface{}, col databaseCollection) (string, error) {
 	collection := db.database.Collection(col.String())
-	_, err := collection.InsertOne(context.Background(), object)
+	res, err := collection.InsertOne(context.Background(), object)
 	if err != nil {
 		fmt.Println(err)
-		return err
+		return "", err
 	}
-	return nil
+	return res.InsertedID.(*bson.Element).Value().ObjectID().Hex(), nil
+}
+
+func (db *Database) findTracks(filter interface{}) ([]Track, error) {
+	collection := db.database.Collection(TRACKS.String())
+	cur, err := collection.Find(context.Background(), filter, nil)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+	defer cur.Close(context.Background())
+
+	tracks := make([]Track, 0)
+	for cur.Next(context.Background()) {
+		var elem Track
+		if err := cur.Decode(&elem); err != nil {
+			fmt.Println(err)
+			return nil, err
+		}
+		tracks = append(tracks, elem)
+	}
+
+	return tracks, nil
 }
