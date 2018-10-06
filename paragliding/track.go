@@ -51,6 +51,7 @@ func getTrack(req *Request, db *Database, id string) {
 
 	if len(tracks) < 1 {
 		req.SendError("Invalid ID", http.StatusBadRequest)
+		return
 	}
 	req.SendJSON(&tracks[0], http.StatusOK)
 }
