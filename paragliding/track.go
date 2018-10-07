@@ -1,7 +1,6 @@
 package paragliding
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -9,31 +8,12 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/mongodb/mongo-go-driver/mongo/findopt"
+
 	igc "github.com/marni/goigc"
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/bson/objectid"
 )
-
-// Retrieves a track from the database by its objectID (hex string)
-func getTrackByID(db *Database, id string) (*Track, error) {
-	objectID, err := objectid.FromHex(id)
-	if err != nil {
-		return nil, err
-	}
-
-	filter := bson.NewDocument(bson.EC.ObjectID("_id", objectID))
-	tracks, err := db.findTracks(filter, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(tracks) < 1 {
-		return nil, errors.New("Track doesn't exist in database")
-	}
-
-	// Wtf, why is this even possible
-	return &tracks[0], nil
-}
 
 // Ensures that a link points to an IGC resource (but just that it is a valid URL and has an igc extension)
 func ensureIGCLink(link string) bool {
@@ -51,14 +31,18 @@ func ensureIGCLink(link string) bool {
 // GET /api/track
 // Returns an array of IDs of all tracks stored in the database
 func getAllTracks(req *Request, db *Database) {
-	// Get all tracks in database
-	tracks, err := db.findTracks(nil, nil)
+	// Only get the id
+	findopts := []findopt.Find{
+		findopt.Projection(bson.NewDocument(bson.EC.Int64("_id", 1)))}
+
+	// Get all track IDs in database
+	tracks, err := db.findTracks(nil, findopts)
 	if err != nil {
 		req.SendError("Internal database error", http.StatusInternalServerError)
 		return
 	}
 
-	// Retrieve all the ids into a slice
+	// Retrieve all the IDs into a slice
 	ids := make([]string, 0, len(tracks))
 	for _, track := range tracks {
 		ids = append(ids, track.ID.Hex())
@@ -70,41 +54,64 @@ func getAllTracks(req *Request, db *Database) {
 // GET /api/track/{id}
 // Retrieves a track by the value of its ObjectID (hex encoded string)
 func getTrack(req *Request, db *Database, id string) {
-	track, err := getTrackByID(db, id)
+	// Only get the requested track
+	objectID, err := objectid.FromHex(id)
 	if err != nil {
 		req.SendError("Invalid ID", http.StatusBadRequest)
 		return
 	}
-	req.SendJSON(track, http.StatusOK)
+	filter := bson.NewDocument(bson.EC.ObjectID("_id", objectID))
+
+	tracks, err := db.findTracks(filter, nil)
+	if err != nil {
+		req.SendError("Internal database error", http.StatusInternalServerError)
+		return
+	}
+	if len(tracks) < 1 {
+		req.SendError("Invalid ID", http.StatusBadRequest)
+		return
+	}
+
+	req.SendJSON(&tracks[0], http.StatusOK)
 }
 
 // GET /api/track/{id}/{field}
 func getTrackField(req *Request, db *Database, id string, field string) {
-	track, err := getTrackByID(db, id)
+	objectID, err := objectid.FromHex(id)
 	if err != nil {
 		req.SendError("Invalid ID", http.StatusBadRequest)
 		return
 	}
 
-	var resValue string
-	switch field {
-	case "pilot":
-		resValue = track.Pilot
-	case "glider":
-		resValue = track.Glider
-	case "glider_id":
-		resValue = track.GliderID
-	case "track_length":
-		resValue = track.TrackLength
-	case "H_date":
-		resValue = track.HDate
-	case "track_src_url":
-		resValue = track.TrackSrcURL
-	default:
-		http.NotFound(req.w, req.r)
+	// Only get the requested field
+	filter := bson.NewDocument(bson.EC.ObjectID("_id", objectID))
+	findopts := []findopt.Find{
+		findopt.Projection(bson.NewDocument(bson.EC.Int64(field, 1)))}
+
+	tracks, err := db.findTracks(filter, findopts)
+	if err != nil {
+		req.SendError("Internal database error", http.StatusInternalServerError)
+		return
+	}
+	if len(tracks) < 1 {
+		req.SendError("Invalid ID", http.StatusBadRequest)
+		return
 	}
 
-	req.SendText(resValue)
+	switch field {
+	case "pilot":
+		req.SendText(tracks[0].Pilot)
+	case "glider":
+		req.SendText(tracks[0].Glider)
+	case "glider_id":
+		req.SendText(tracks[0].GliderID)
+	case "track_length":
+		req.SendText(tracks[0].TrackLength)
+	case "H_date":
+		req.SendText(tracks[0].HDate)
+	case "track_src_url":
+		req.SendText(tracks[0].TrackSrcURL)
+	}
 }
 
 // POST /api/track
@@ -136,8 +143,7 @@ func registerTrack(req *Request, db *Database) {
 
 	// Send response containing the ID to the inserted track
 	newTrack := createTrack(&igc, request.URL)
-
-	id, err := db.insertObject(newTrack, TRACKS)
+	id, err := db.insertTrack(&newTrack)
 	if err != nil {
 		req.SendError("Internal database error", http.StatusInternalServerError)
 		return
@@ -152,7 +158,7 @@ func registerTrack(req *Request, db *Database) {
 // Routes the /track request to handlers
 func handleTrackRequest(req *Request, db *Database, path string) {
 	// GET/POST /api/track
-	if match, _ := regexp.MatchString("^track[/]?$", path); match {
+	if match, _ := regexp.MatchString("^track/?$", path); match {
 		switch req.r.Method {
 		case "GET":
 			getAllTracks(req, db)
@@ -164,13 +170,13 @@ func handleTrackRequest(req *Request, db *Database, path string) {
 
 	// GET /api/track/{id}
 	if req.r.Method == "GET" {
-		if match := regexp.MustCompile("^track/([a-z0-9]{24})[/]?$").FindStringSubmatch(path); match != nil {
+		if match := regexp.MustCompile("^track/([a-z0-9]{24})/?$").FindStringSubmatch(path); match != nil {
 			getTrack(req, db, match[1])
 			return
 		}
 
 		// GET track/{id}/{field}
-		if match := regexp.MustCompile("^track/([a-z0-9]{24})/([a-zA-Z_]+)[/]?$").FindStringSubmatch(path); match != nil {
+		if match := regexp.MustCompile("^track/([a-z0-9]{24})/(pilot|glider|glider_id|track_length|H_date|track_src_url)/?$").FindStringSubmatch(path); match != nil {
 			getTrackField(req, db, match[1], match[2])
 			return
 		}

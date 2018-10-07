@@ -56,11 +56,8 @@ func (app *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (app *App) StartServer() {
 	// Try connect to mongoDB
 	app.db = Database{MongoURL: app.MongoURL, DBName: app.DBName}
-	if err := app.db.createConnection(); err != nil {
-		log.Fatal(err)
-	} else {
-		fmt.Println("Connected to mongoDB")
-	}
+	app.db.createConnection()
+	fmt.Println("Connected to mongoDB")
 
 	// Configure redirect and 404 not found handler, and direct requests to the API path to the handler
 	http.Handle("/", http.NotFoundHandler())
