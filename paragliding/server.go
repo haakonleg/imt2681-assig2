@@ -44,6 +44,7 @@ func (app *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "track":
 		handleTrackRequest(&req, &app.db, path)
 	case "ticker":
+		handleTickerRequest(&req, &app.db, path)
 	case "webhook":
 	case "admin":
 	default:

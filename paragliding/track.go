@@ -22,7 +22,7 @@ func getTrackByID(db *Database, id string) (*Track, error) {
 	}
 
 	filter := bson.NewDocument(bson.EC.ObjectID("_id", objectID))
-	tracks, err := db.findTracks(filter)
+	tracks, err := db.findTracks(filter, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +52,7 @@ func ensureIGCLink(link string) bool {
 // Returns an array of IDs of all tracks stored in the database
 func getAllTracks(req *Request, db *Database) {
 	// Get all tracks in database
-	tracks, err := db.findTracks(nil)
+	tracks, err := db.findTracks(nil, nil)
 	if err != nil {
 		req.SendError("Internal database error", http.StatusInternalServerError)
 		return

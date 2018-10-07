@@ -6,6 +6,7 @@ import (
 
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/mongo"
+	"github.com/mongodb/mongo-go-driver/mongo/findopt"
 )
 
 // Name of the database and the collections we have
@@ -55,9 +56,9 @@ func (db *Database) insertObject(object interface{}, col databaseCollection) (st
 	return res.InsertedID.(*bson.Element).Value().ObjectID().Hex(), nil
 }
 
-func (db *Database) findTracks(filter interface{}) ([]Track, error) {
+func (db *Database) findTracks(filter interface{}, opts []findopt.Find) ([]Track, error) {
 	collection := db.database.Collection(TRACKS.String())
-	cur, err := collection.Find(context.Background(), filter, nil)
+	cur, err := collection.Find(context.Background(), filter, opts...)
 	if err != nil {
 		fmt.Println(err)
 		return nil, err
