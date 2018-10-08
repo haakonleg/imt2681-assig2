@@ -155,5 +155,5 @@ func registerTrack(req *Request, db *Database) {
 	req.SendJSON(&response, http.StatusOK)
 
 	// Invoke webhooks
-	invokeWebhooks(db)
+	checkInvokeWebhooks(db)
 }

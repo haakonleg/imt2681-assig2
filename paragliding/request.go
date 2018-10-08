@@ -8,21 +8,42 @@ import (
 	"net/http"
 )
 
-// Request contains the context of the HTTP request, it also has some helper methods
-type Request struct {
-	w http.ResponseWriter
-	r *http.Request
-}
-
-type responseType int
+type ResponseType int
+type Method int
 
 const (
-	JSON responseType = iota
+	JSON ResponseType = iota
 	TEXT
+
+	GET Method = iota
+	POST
+	DELETE
 )
 
+// Request contains the context of the HTTP request, it also has some helper methods
+type Request struct {
+	w      http.ResponseWriter
+	r      *http.Request
+	method Method
+}
+
+func createRequest(w http.ResponseWriter, r *http.Request, method string) *Request {
+	var req Request
+	req.w = w
+	req.r = r
+	switch method {
+	case "GET":
+		req.method = GET
+	case "POST":
+		req.method = POST
+	case "DELETE":
+		req.method = DELETE
+	}
+	return &req
+}
+
 // SetResponseType sets the response type of the HTTP response
-func (req *Request) SetResponseType(responseType responseType) {
+func (req *Request) SetResponseType(responseType ResponseType) {
 	switch responseType {
 	case JSON:
 		req.w.Header().Set("Content-Type", "application/json")

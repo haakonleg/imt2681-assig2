@@ -8,7 +8,7 @@ import (
 
 // invokeWebhooks decrements the trigger counters of each webhook by one, then checks which webhooks that have their counter/trigger
 // equal to zero and invokes the ones who have, then their counter is reset
-func invokeWebhooks(db *Database) {
+func checkInvokeWebhooks(db *Database) {
 	// Decrement all webhooks triggercount by one
 	updateDoc := bson.NewDocument(
 		bson.EC.SubDocumentFromElements("$inc",
@@ -35,9 +35,9 @@ func invokeWebhooks(db *Database) {
 	}
 }
 
-// TODO: Implement
+// invokeWebhook sends a POST request to the webhook containing information about added tracks
 func invokeWebhook(webhook Webhook, db *Database) {
-
+	//req, err := http.Post(webhook.WebhookURL, "application/json", )
 }
 
 // TODO: Implement

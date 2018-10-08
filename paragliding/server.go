@@ -26,12 +26,12 @@ type App struct {
 
 // Route the API request to handlers
 func (app *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	req := Request{w, r}
+	req := createRequest(w, r, r.Method)
 	path := strings.TrimPrefix(r.URL.Path, apiPath)
 
 	// GET /api
-	if len(path) == 0 && req.r.Method == "GET" {
-		getAPIInfo(&req, &app.startTime)
+	if len(path) == 0 && req.method == GET {
+		getAPIInfo(req, &app.startTime)
 		return
 	}
 
@@ -45,11 +45,11 @@ func (app *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	switch nextpath {
 	case "track":
-		handleTrackRequest(&req, &app.db, path)
+		handleTrackRequest(req, &app.db, path)
 	case "ticker":
-		handleTickerRequest(&req, &app.db, path, app.TickerLimit)
+		handleTickerRequest(req, &app.db, path, app.TickerLimit)
 	case "webhook":
-		handleWebhookRequest(&req, &app.db, path)
+		handleWebhookRequest(req, &app.db, path)
 	case "admin":
 	default:
 		http.NotFound(req.w, req.r)
