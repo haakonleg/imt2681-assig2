@@ -49,6 +49,7 @@ func (db *Database) createConnection() {
 	db.createTimestampIndex()
 }
 
+// InsertObject inserts an object into the specified collection in the database
 func (db *Database) InsertObject(collection databaseCollection, object interface{}) (string, error) {
 	col := db.database.Collection(collection.String())
 	res, err := col.InsertOne(context.Background(), object)
@@ -59,6 +60,7 @@ func (db *Database) InsertObject(collection databaseCollection, object interface
 	return res.InsertedID.(*bson.Element).Value().ObjectID().Hex(), nil
 }
 
+// Find queries documents from the specified collection in the database
 func (db *Database) Find(collection databaseCollection, filter interface{}, opts []findopt.Find) ([]interface{}, error) {
 	col := db.database.Collection(collection.String())
 	cur, err := col.Find(context.Background(), filter, opts...)
@@ -89,6 +91,7 @@ func (db *Database) Find(collection databaseCollection, filter interface{}, opts
 	return results, nil
 }
 
+// Update updates documents in the specified collection in the database
 func (db *Database) Update(collection databaseCollection, filter interface{}, update interface{}) (*mongo.UpdateResult, error) {
 	col := db.database.Collection(collection.String())
 	ur, err := col.UpdateMany(context.Background(), filter, update)

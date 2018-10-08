@@ -27,6 +27,10 @@ func main() {
 	}
 
 	// Configure and start the API
-	app := paragliding.App{MongoURL: url, ListenPort: port, DBName: dbName}
+	app := paragliding.App{
+		MongoURL:    url,
+		ListenPort:  port,
+		DBName:      dbName,
+		TickerLimit: 5}
 	app.StartServer()
 }

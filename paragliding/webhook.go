@@ -2,7 +2,6 @@ package paragliding
 
 import (
 	"net/http"
-	"regexp"
 
 	"github.com/mongodb/mongo-go-driver/bson"
 )
@@ -71,25 +70,4 @@ func registerWebhook(req *Request, db *Database) {
 		ID string `json:"id"`
 	}{ID: id}
 	req.SendJSON(&response, http.StatusOK)
-}
-
-func handleWebhookRequest(req *Request, db *Database, path string) {
-	// Match all webhook requests in one regex by checking if capture group is non-zero
-	if match := regexp.MustCompile("^webhook/new_track/?(/[a-z0-9]{24})?/?$").FindStringSubmatch(path); match != nil {
-		// POST /api/webhook/new_track/
-		if len(match[1]) == 0 && req.r.Method == "POST" {
-			registerWebhook(req, db)
-			return
-			// GET /api/webhook/new/track/{webhook_id}
-		} else if req.r.Method == "GET" {
-			getWebhook(req, db)
-			return
-			// DELETE /api/webhook/new/track/{webhook_id}
-		} else if req.r.Method == "DELETE" {
-			deleteWebhook(req, db)
-			return
-		}
-	}
-
-	http.NotFound(req.w, req.r)
 }

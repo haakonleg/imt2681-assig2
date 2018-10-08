@@ -3,7 +3,6 @@ package paragliding
 import (
 	"errors"
 	"net/http"
-	"regexp"
 	"strconv"
 	"time"
 
@@ -42,7 +41,7 @@ func latestTimestamp(req *Request, db *Database) {
 }
 
 // GET /api/ticker
-func getTicker(req *Request, db *Database, timestampLimit int64) {
+func getTicker(req *Request, db *Database, timestampLimit int64, tickerLimit int64) {
 	// Measure time
 	start := time.Now()
 
@@ -69,7 +68,7 @@ func getTicker(req *Request, db *Database, timestampLimit int64) {
 		findopt.Projection(bson.NewDocument(bson.EC.Int64("ts", 1))),
 		findopt.Sort(bson.NewDocument(bson.EC.Int64("ts", 1))),
 		findopt.Max(bson.NewDocument(bson.EC.Int64("ts", timestampLimit))),
-		findopt.Limit(5)}
+		findopt.Limit(tickerLimit)}
 
 	tracks, err := db.Find(TRACKS, nil, findopts)
 	if err != nil {
@@ -81,45 +80,16 @@ func getTicker(req *Request, db *Database, timestampLimit int64) {
 		return
 	}
 
-	// Add start and stop timestamps to struct
+	// Add start and stop timestamps and IDs to struct
 	ticker.TStart = tracks[0].(Track).Ts
 	ticker.TStop = tracks[len(tracks)-1].(Track).Ts
-
-	// Add the IDs to struct
 	for _, track := range tracks {
 		id := track.(Track).ID.Hex()
 		ticker.Tracks = append(ticker.Tracks, id)
 	}
 
 	// Calculate time it took
-	elapsed := time.Since(start) / time.Millisecond
-	ticker.Processing = int64(elapsed)
+	ticker.Processing = int64(time.Since(start) / time.Millisecond)
 
 	req.SendJSON(&ticker, http.StatusOK)
-}
-
-func handleTickerRequest(req *Request, db *Database, path string) {
-	// This regex matches all paths in a single regex by checking which capture groups a nonzero length (in other words they were matched)
-	if req.r.Method == "GET" {
-		if match := regexp.MustCompile("^ticker/?(latest)?([0-9]+)?/?$").FindStringSubmatch(path); match != nil {
-			if len(match[2]) != 0 {
-				timestamp, err := strconv.ParseInt(match[2], 10, 64)
-				if err != nil {
-					req.SendError("Invalid timestamp", http.StatusBadRequest)
-					return
-				}
-
-				getTicker(req, db, timestamp)
-				return
-			} else if len(match[1]) != 0 {
-				latestTimestamp(req, db)
-				return
-			} else {
-				getTicker(req, db, 0)
-				return
-			}
-		}
-	}
-
-	http.NotFound(req.w, req.r)
 }

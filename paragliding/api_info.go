@@ -6,24 +6,24 @@ import (
 	"time"
 )
 
-var appStartTime = time.Now()
-
-type apiInfo struct {
-	Uptime  string `json:"uptime"`
-	Info    string `json:"info"`
-	Version string `json:"version"`
-}
-
 // Send API info
-func sendAPIInfo(req *Request) {
-	info := &apiInfo{uptime(), "Service for Paragliding tracks.", "v1"}
-	req.SendJSON(info, http.StatusOK)
+func getAPIInfo(req *Request, startTime *time.Time) {
+	response := struct {
+		Uptime  string `json:"uptime"`
+		Info    string `json:"info"`
+		Version string `json:"version"`
+	}{
+		Uptime:  uptime(startTime),
+		Info:    "Service for Paragliding tracks.",
+		Version: "v1"}
+
+	req.SendJSON(&response, http.StatusOK)
 }
 
 // uptime returns the app uptime in ISO 8601 duration format
-func uptime() string {
+func uptime(startTime *time.Time) string {
 	// Seconds duration since app start
-	duration := time.Since(appStartTime)
+	duration := time.Since(*startTime)
 
 	sec := int(duration.Seconds()) % 60
 	min := int(duration.Minutes()) % 60

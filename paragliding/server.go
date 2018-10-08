@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 )
 
 const (
@@ -14,11 +15,13 @@ const (
 
 // App must be instantiated with the url to the mongodb database, database name and the port for the API to listen on
 type App struct {
-	MongoURL   string
-	DBName     string
-	ListenPort string
+	MongoURL    string
+	DBName      string
+	ListenPort  string
+	TickerLimit int64
 
-	db Database
+	db        Database
+	startTime time.Time
 }
 
 // Route the API request to handlers
@@ -28,7 +31,7 @@ func (app *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// GET /api
 	if len(path) == 0 && req.r.Method == "GET" {
-		sendAPIInfo(&req)
+		getAPIInfo(&req, &app.startTime)
 		return
 	}
 
@@ -44,7 +47,7 @@ func (app *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "track":
 		handleTrackRequest(&req, &app.db, path)
 	case "ticker":
-		handleTickerRequest(&req, &app.db, path)
+		handleTickerRequest(&req, &app.db, path, app.TickerLimit)
 	case "webhook":
 		handleWebhookRequest(&req, &app.db, path)
 	case "admin":
@@ -55,6 +58,8 @@ func (app *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // StartServer starts listening and serving the API server
 func (app *App) StartServer() {
+	app.startTime = time.Now()
+
 	// Try connect to mongoDB
 	app.db = Database{MongoURL: app.MongoURL, DBName: app.DBName}
 	app.db.createConnection()

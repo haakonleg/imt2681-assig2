@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"net/url"
 	"path"
-	"regexp"
 	"strings"
 
 	"github.com/mongodb/mongo-go-driver/mongo/findopt"
@@ -157,34 +156,4 @@ func registerTrack(req *Request, db *Database) {
 
 	// Invoke webhooks
 	invokeWebhooks(db)
-}
-
-// Routes the /track request to handlers
-func handleTrackRequest(req *Request, db *Database, path string) {
-	// GET/POST /api/track
-	if match, _ := regexp.MatchString("^track/?$", path); match {
-		switch req.r.Method {
-		case "GET":
-			getAllTracks(req, db)
-		case "POST":
-			registerTrack(req, db)
-		}
-		return
-	}
-
-	// GET /api/track/{id}
-	if req.r.Method == "GET" {
-		if match := regexp.MustCompile("^track/([a-z0-9]{24})/?$").FindStringSubmatch(path); match != nil {
-			getTrack(req, db, match[1])
-			return
-		}
-
-		// GET track/{id}/{field}
-		if match := regexp.MustCompile("^track/([a-z0-9]{24})/(pilot|glider|glider_id|track_length|H_date|track_src_url)/?$").FindStringSubmatch(path); match != nil {
-			getTrackField(req, db, match[1], match[2])
-			return
-		}
-	}
-
-	http.NotFound(req.w, req.r)
 }
