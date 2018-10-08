@@ -6,10 +6,17 @@ import (
 	"strconv"
 )
 
+// matchers
+var reGetPostAPITrack = regexp.MustCompile("^track/?$")
+var reGetTrack = regexp.MustCompile("^track/([a-z0-9]{24})/?$")
+var reGetTrackField = regexp.MustCompile("^track/([a-z0-9]{24})/(pilot|glider|glider_id|track_length|H_date|track_src_url)/?$")
+var reTicker = regexp.MustCompile("^ticker/?(latest)?([0-9]+)?/?$")
+var reWebhook = regexp.MustCompile("^webhook/new_track/?(/[a-z0-9]{24})?/?$")
+
 // Routes the /api/track/ requests to handlers
 func handleTrackRequest(req *Request, db *Database, path string) {
 	// GET/POST /api/track
-	if match, _ := regexp.MatchString("^track/?$", path); match {
+	if match := reGetPostAPITrack.MatchString(path); match {
 		switch req.r.Method {
 		case "GET":
 			getAllTracks(req, db)
@@ -21,13 +28,13 @@ func handleTrackRequest(req *Request, db *Database, path string) {
 
 	// GET /api/track/{id}
 	if req.r.Method == "GET" {
-		if match := regexp.MustCompile("^track/([a-z0-9]{24})/?$").FindStringSubmatch(path); match != nil {
+		if match := reGetTrack.FindStringSubmatch(path); match != nil {
 			getTrack(req, db, match[1])
 			return
 		}
 
 		// GET track/{id}/{field}
-		if match := regexp.MustCompile("^track/([a-z0-9]{24})/(pilot|glider|glider_id|track_length|H_date|track_src_url)/?$").FindStringSubmatch(path); match != nil {
+		if match := reGetTrackField.FindStringSubmatch(path); match != nil {
 			getTrackField(req, db, match[1], match[2])
 			return
 		}
@@ -40,7 +47,7 @@ func handleTrackRequest(req *Request, db *Database, path string) {
 func handleTickerRequest(req *Request, db *Database, path string, tickerLimit int64) {
 	// This regex matches all paths in a single regex by checking which capture groups a nonzero length (in other words they were matched)
 	if req.r.Method == "GET" {
-		if match := regexp.MustCompile("^ticker/?(latest)?([0-9]+)?/?$").FindStringSubmatch(path); match != nil {
+		if match := reTicker.FindStringSubmatch(path); match != nil {
 			if len(match[2]) != 0 {
 				timestamp, err := strconv.ParseInt(match[2], 10, 64)
 				if err != nil {
@@ -66,7 +73,7 @@ func handleTickerRequest(req *Request, db *Database, path string, tickerLimit in
 // Routes the /api/webhook/ requests to handlers
 func handleWebhookRequest(req *Request, db *Database, path string) {
 	// Match all webhook requests in one regex by checking if capture group is non-zero
-	if match := regexp.MustCompile("^webhook/new_track/?(/[a-z0-9]{24})?/?$").FindStringSubmatch(path); match != nil {
+	if match := reWebhook.FindStringSubmatch(path); match != nil {
 		// POST /api/webhook/new_track/
 		if len(match[1]) == 0 && req.r.Method == "POST" {
 			registerWebhook(req, db)
