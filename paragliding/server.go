@@ -46,6 +46,7 @@ func (app *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "ticker":
 		handleTickerRequest(&req, &app.db, path)
 	case "webhook":
+		handleWebhookRequest(&req, &app.db, path)
 	case "admin":
 	default:
 		http.NotFound(req.w, req.r)

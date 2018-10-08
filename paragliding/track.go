@@ -143,7 +143,7 @@ func registerTrack(req *Request, db *Database) {
 
 	// Send response containing the ID to the inserted track
 	newTrack := createTrack(&igc, request.URL)
-	id, err := db.insertTrack(&newTrack)
+	id, err := db.insertObject(tracks, &newTrack)
 	if err != nil {
 		req.SendError("Internal database error", http.StatusInternalServerError)
 		return
@@ -153,6 +153,9 @@ func registerTrack(req *Request, db *Database) {
 		ID string `json:"id"`
 	}{ID: id}
 	req.SendJSON(&response, http.StatusOK)
+
+	// Invoke webhooks
+	invokeWebhooks(db)
 }
 
 // Routes the /track request to handlers
