@@ -20,7 +20,7 @@ func findLatestTimestamp(db *Database) (int64, error) {
 		findopt.Projection(bson.NewDocument(bson.EC.Int64("ts", 1))),
 		findopt.Limit(1)}
 
-	tracks, err := db.findTracks(nil, findopts)
+	tracks, err := db.Find(TRACKS, nil, findopts)
 	if err != nil {
 		return -1, errors.New("Internal database error")
 	}
@@ -28,7 +28,7 @@ func findLatestTimestamp(db *Database) (int64, error) {
 		return -1, errors.New("No tracks added yet")
 	}
 
-	return tracks[0].Ts, nil
+	return tracks[0].(Track).Ts, nil
 }
 
 func latestTimestamp(req *Request, db *Database) {
@@ -71,7 +71,7 @@ func getTicker(req *Request, db *Database, timestampLimit int64) {
 		findopt.Max(bson.NewDocument(bson.EC.Int64("ts", timestampLimit))),
 		findopt.Limit(5)}
 
-	tracks, err := db.findTracks(nil, findopts)
+	tracks, err := db.Find(TRACKS, nil, findopts)
 	if err != nil {
 		req.SendError("Internal database error", http.StatusInternalServerError)
 		return
@@ -82,12 +82,12 @@ func getTicker(req *Request, db *Database, timestampLimit int64) {
 	}
 
 	// Add start and stop timestamps to struct
-	ticker.TStart = tracks[0].Ts
-	ticker.TStop = tracks[len(tracks)-1].Ts
+	ticker.TStart = tracks[0].(Track).Ts
+	ticker.TStop = tracks[len(tracks)-1].(Track).Ts
 
 	// Add the IDs to struct
 	for _, track := range tracks {
-		id := track.ID.Hex()
+		id := track.(Track).ID.Hex()
 		ticker.Tracks = append(ticker.Tracks, id)
 	}
 

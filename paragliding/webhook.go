@@ -14,25 +14,25 @@ func invokeWebhooks(db *Database) {
 	updateDoc := bson.NewDocument(
 		bson.EC.SubDocumentFromElements("$inc",
 			bson.EC.Int64("triggerCount", -1)))
-	db.updateWebhooks(nil, updateDoc)
+	db.Update(WEBHOOKS, nil, updateDoc)
 
 	// Retrieve all webhooks where the counter is zero
 	filter := bson.NewDocument(
 		bson.EC.SubDocumentFromElements("triggerCount",
 			bson.EC.Int64("$eq", 0)))
-	webhooks, _ := db.findWebhooks(filter, nil)
+	webhooks, _ := db.Find(WEBHOOKS, filter, nil)
 
 	// Invoke the webhooks
 	for _, webhook := range webhooks {
-		invokeWebhook(webhook, db)
+		invokeWebhook(webhook.(Webhook), db)
 
 		// Reset the invoked webhook counter and set lastInvoked
-		filter = bson.NewDocument(bson.EC.ObjectID("_id", webhook.ID))
+		filter = bson.NewDocument(bson.EC.ObjectID("_id", webhook.(Webhook).ID))
 		updateDoc = bson.NewDocument(
 			bson.EC.SubDocumentFromElements("$set",
-				bson.EC.Int64("triggerCount", webhook.MinTriggerValue),
+				bson.EC.Int64("triggerCount", webhook.(Webhook).MinTriggerValue),
 				bson.EC.Int64("lastInvoked", nowMilli())))
-		db.updateWebhooks(filter, updateDoc)
+		db.Update(WEBHOOKS, filter, updateDoc)
 	}
 }
 
@@ -61,7 +61,7 @@ func registerWebhook(req *Request, db *Database) {
 	}
 
 	webhook := createWebhook(webhookReq.WebhookURL, webhookReq.MinTriggerValue)
-	id, err := db.insertObject(webhooks, &webhook)
+	id, err := db.InsertObject(WEBHOOKS, &webhook)
 	if err != nil {
 		req.SendError("Internal database error", http.StatusInternalServerError)
 		return

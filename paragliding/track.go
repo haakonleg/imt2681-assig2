@@ -36,7 +36,7 @@ func getAllTracks(req *Request, db *Database) {
 		findopt.Projection(bson.NewDocument(bson.EC.Int64("_id", 1)))}
 
 	// Get all track IDs in database
-	tracks, err := db.findTracks(nil, findopts)
+	tracks, err := db.Find(TRACKS, nil, findopts)
 	if err != nil {
 		req.SendError("Internal database error", http.StatusInternalServerError)
 		return
@@ -45,7 +45,7 @@ func getAllTracks(req *Request, db *Database) {
 	// Retrieve all the IDs into a slice
 	ids := make([]string, 0, len(tracks))
 	for _, track := range tracks {
-		ids = append(ids, track.ID.Hex())
+		ids = append(ids, track.(Track).ID.Hex())
 	}
 
 	req.SendJSON(&ids, http.StatusOK)
@@ -62,7 +62,7 @@ func getTrack(req *Request, db *Database, id string) {
 	}
 	filter := bson.NewDocument(bson.EC.ObjectID("_id", objectID))
 
-	tracks, err := db.findTracks(filter, nil)
+	tracks, err := db.Find(TRACKS, filter, nil)
 	if err != nil {
 		req.SendError("Internal database error", http.StatusInternalServerError)
 		return
@@ -88,7 +88,7 @@ func getTrackField(req *Request, db *Database, id string, field string) {
 	findopts := []findopt.Find{
 		findopt.Projection(bson.NewDocument(bson.EC.Int64(field, 1)))}
 
-	tracks, err := db.findTracks(filter, findopts)
+	tracks, err := db.Find(TRACKS, filter, findopts)
 	if err != nil {
 		req.SendError("Internal database error", http.StatusInternalServerError)
 		return
@@ -98,19 +98,20 @@ func getTrackField(req *Request, db *Database, id string, field string) {
 		return
 	}
 
+	track := tracks[0].(Track)
 	switch field {
 	case "pilot":
-		req.SendText(tracks[0].Pilot)
+		req.SendText(track.Pilot)
 	case "glider":
-		req.SendText(tracks[0].Glider)
+		req.SendText(track.Glider)
 	case "glider_id":
-		req.SendText(tracks[0].GliderID)
+		req.SendText(track.GliderID)
 	case "track_length":
-		req.SendText(tracks[0].TrackLength)
+		req.SendText(track.TrackLength)
 	case "H_date":
-		req.SendText(tracks[0].HDate)
+		req.SendText(track.HDate)
 	case "track_src_url":
-		req.SendText(tracks[0].TrackSrcURL)
+		req.SendText(track.TrackSrcURL)
 	}
 }
 
@@ -143,7 +144,7 @@ func registerTrack(req *Request, db *Database) {
 
 	// Send response containing the ID to the inserted track
 	newTrack := createTrack(&igc, request.URL)
-	id, err := db.insertObject(tracks, &newTrack)
+	id, err := db.InsertObject(TRACKS, &newTrack)
 	if err != nil {
 		req.SendError("Internal database error", http.StatusInternalServerError)
 		return
