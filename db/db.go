@@ -1,10 +1,11 @@
-package paragliding
+package mdb
 
 import (
 	"context"
 	"fmt"
 	"log"
 
+	"github.com/haakonleg/imt2681-assig2/track"
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/mongo"
 	"github.com/mongodb/mongo-go-driver/mongo/findopt"
@@ -39,7 +40,7 @@ type Database struct {
 }
 
 // CreateConnection creates a connection to the mongoDB server
-func (db *Database) createConnection() {
+func (db *Database) CreateConnection() {
 	client, err := mongo.Connect(context.Background(), db.MongoURL, nil)
 	if err != nil {
 		log.Fatal(err)
@@ -74,7 +75,7 @@ func (db *Database) Find(collection databaseCollection, filter interface{}, opts
 	for cur.Next(context.Background()) {
 		switch collection {
 		case TRACKS:
-			var track Track
+			var track track.Track
 			if err := cur.Decode(&track); err != nil {
 				return nil, err
 			}

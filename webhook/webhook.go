@@ -1,14 +1,24 @@
-package paragliding
+package webhook
 
 import (
 	"net/http"
 
+	"github.com/haakonleg/imt2681-assig2/router"
 	"github.com/mongodb/mongo-go-driver/bson"
 )
 
-// invokeWebhooks decrements the trigger counters of each webhook by one, then checks which webhooks that have their counter/trigger
+type WebhookHandler struct {
+	db *mdb.Database
+}
+
+func NewWebhookHandler(db *mdb.Database) *WebhookHandler {
+	return &WebhookHandler{
+		db: db}
+}
+
+// CheckInvokeWebhooks decrements the trigger counters of each webhook by one, then checks which webhooks that have their counter/trigger
 // equal to zero and invokes the ones who have, then their counter is reset
-func checkInvokeWebhooks(db *Database) {
+func (wh *WebhookHandler) CheckInvokeWebhooks(db *mdb.Database) {
 	// Decrement all webhooks triggercount by one
 	updateDoc := bson.NewDocument(
 		bson.EC.SubDocumentFromElements("$inc",
@@ -36,22 +46,22 @@ func checkInvokeWebhooks(db *Database) {
 }
 
 // invokeWebhook sends a POST request to the webhook containing information about added tracks
-func invokeWebhook(webhook Webhook, db *Database) {
-	//req, err := http.Post(webhook.WebhookURL, "application/json", )
+func invokeWebhook(webhook Webhook, db *mdb.Database) {
+	//req, err := http.NewRequest(http.MethodPost, webhook.WebhookURL)
 }
 
 // TODO: Implement
-func getWebhook(req *Request, db *Database) {
+func getWebhook(req *router.Request) {
 
 }
 
 // TODO: Implement
-func deleteWebhook(req *Request, db *Database) {
+func deleteWebhook(req *router.Request) {
 
 }
 
 // Register a webhook to be notified when new tracks are created
-func registerWebhook(req *Request, db *Database) {
+func (wh *WebhookHandler) PostWebhook(req *router.Request) {
 	var webhookReq Webhook
 	err := req.ParseJSONRequest(&webhookReq)
 	if err != nil || len(webhookReq.WebhookURL) == 0 {
@@ -60,7 +70,7 @@ func registerWebhook(req *Request, db *Database) {
 	}
 
 	webhook := createWebhook(webhookReq.WebhookURL, webhookReq.MinTriggerValue)
-	id, err := db.InsertObject(WEBHOOKS, &webhook)
+	id, err := wh.db.InsertObject(WEBHOOKS, &webhook)
 	if err != nil {
 		req.SendError("Internal database error", http.StatusInternalServerError)
 		return

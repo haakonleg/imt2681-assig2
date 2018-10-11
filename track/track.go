@@ -1,4 +1,4 @@
-package paragliding
+package track
 
 import (
 	"fmt"
@@ -7,6 +7,8 @@ import (
 	"path"
 	"strings"
 
+	"github.com/haakonleg/imt2681-assig2/router"
+	"github.com/haakonleg/imt2681-assig2/mdb"
 	"github.com/mongodb/mongo-go-driver/mongo/findopt"
 
 	igc "github.com/marni/goigc"
@@ -14,28 +16,24 @@ import (
 	"github.com/mongodb/mongo-go-driver/bson/objectid"
 )
 
-// Ensures that a link points to an IGC resource (but just that it is a valid URL and has an igc extension)
-func ensureIGCLink(link string) bool {
-	if _, err := url.ParseRequestURI(link); err != nil {
-		return false
-	}
+type TrackHandler struct {
+	db *mdb.Database
+}
 
-	ext := strings.ToLower(path.Ext(link))
-	if ext != ".igc" {
-		return false
-	}
-	return true
+func NewTrackHandler(db *mdb.Database) *TrackHandler {
+	return &TrackHandler{
+		db: db}
 }
 
 // GET /api/track
 // Returns an array of IDs of all tracks stored in the database
-func getAllTracks(req *Request, db *Database) {
+func (th *TrackHandler) GetAllTracks(req *router.Request) {
 	// Only get the id
 	findopts := []findopt.Find{
 		findopt.Projection(bson.NewDocument(bson.EC.Int64("_id", 1)))}
 
 	// Get all track IDs in database
-	tracks, err := db.Find(TRACKS, nil, findopts)
+	tracks, err := th.db.Find(TRACKS, nil, findopts)
 	if err != nil {
 		req.SendError("Internal database error", http.StatusInternalServerError)
 		return
@@ -52,7 +50,9 @@ func getAllTracks(req *Request, db *Database) {
 
 // GET /api/track/{id}
 // Retrieves a track by the value of its ObjectID (hex encoded string)
-func getTrack(req *Request, db *Database, id string) {
+func (th *TrackHandler) GetTrack(req *router.Request) {
+	id := req.Vars[0]
+
 	// Only get the requested track
 	objectID, err := objectid.FromHex(id)
 	if err != nil {
@@ -61,7 +61,7 @@ func getTrack(req *Request, db *Database, id string) {
 	}
 	filter := bson.NewDocument(bson.EC.ObjectID("_id", objectID))
 
-	tracks, err := db.Find(TRACKS, filter, nil)
+	tracks, err := th.db.Find(TRACKS, filter, nil)
 	if err != nil {
 		req.SendError("Internal database error", http.StatusInternalServerError)
 		return
@@ -75,7 +75,10 @@ func getTrack(req *Request, db *Database, id string) {
 }
 
 // GET /api/track/{id}/{field}
-func getTrackField(req *Request, db *Database, id string, field string) {
+func (th *TrackHandler) GetTrackField(req *router.Request) {
+	id := req.Vars[0]
+	field := req.Vars[1]
+
 	objectID, err := objectid.FromHex(id)
 	if err != nil {
 		req.SendError("Invalid ID", http.StatusBadRequest)
@@ -87,7 +90,7 @@ func getTrackField(req *Request, db *Database, id string, field string) {
 	findopts := []findopt.Find{
 		findopt.Projection(bson.NewDocument(bson.EC.Int64(field, 1)))}
 
-	tracks, err := db.Find(TRACKS, filter, findopts)
+	tracks, err := th.db.Find(TRACKS, filter, findopts)
 	if err != nil {
 		req.SendError("Internal database error", http.StatusInternalServerError)
 		return
@@ -116,7 +119,7 @@ func getTrackField(req *Request, db *Database, id string, field string) {
 
 // POST /api/track
 // Register/upload a track
-func registerTrack(req *Request, db *Database) {
+func (th *TrackHandler) PostTrack(req *router.Request) {
 	var request struct {
 		URL string `json:"url"`
 	}
@@ -143,7 +146,7 @@ func registerTrack(req *Request, db *Database) {
 
 	// Send response containing the ID to the inserted track
 	newTrack := createTrack(&igc, request.URL)
-	id, err := db.InsertObject(TRACKS, &newTrack)
+	id, err := th.db.InsertObject(TRACKS, &newTrack)
 	if err != nil {
 		req.SendError("Internal database error", http.StatusInternalServerError)
 		return
@@ -155,5 +158,18 @@ func registerTrack(req *Request, db *Database) {
 	req.SendJSON(&response, http.StatusOK)
 
 	// Invoke webhooks
-	checkInvokeWebhooks(db)
+	//checkInvokeWebhooks(th.db)
+}
+
+// Ensures that a link points to an IGC resource (but just that it is a valid URL and has an igc extension)
+func ensureIGCLink(link string) bool {
+	if _, err := url.ParseRequestURI(link); err != nil {
+		return false
+	}
+
+	ext := strings.ToLower(path.Ext(link))
+	if ext != ".igc" {
+		return false
+	}
+	return true
 }

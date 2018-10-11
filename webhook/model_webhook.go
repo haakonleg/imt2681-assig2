@@ -1,4 +1,4 @@
-package paragliding
+package webhook
 
 import "github.com/mongodb/mongo-go-driver/bson/objectid"
 

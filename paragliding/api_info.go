@@ -4,16 +4,27 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/haakonleg/imt2681-assig2/router"
 )
 
+type ApiInfoHandler struct {
+	startTime time.Time
+}
+
+func NewInfoHandler() *ApiInfoHandler {
+	return &ApiInfoHandler{
+		startTime: time.Now()}
+}
+
 // Send API info
-func getAPIInfo(req *Request, startTime *time.Time) {
+func (aih *ApiInfoHandler) getAPIInfo(req *router.Request) {
 	response := struct {
 		Uptime  string `json:"uptime"`
 		Info    string `json:"info"`
 		Version string `json:"version"`
 	}{
-		Uptime:  uptime(startTime),
+		Uptime:  uptime(&aih.startTime),
 		Info:    "Service for Paragliding tracks.",
 		Version: "v1"}
 

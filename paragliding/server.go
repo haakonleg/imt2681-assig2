@@ -4,13 +4,11 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
-	"time"
-)
 
-const (
-	rootPath = "/paragliding/"
-	apiPath  = "/paragliding/api/"
+	"github.com/haakonleg/imt2681-assig2/mdb"
+	"github.com/haakonleg/imt2681-assig2/router"
+	"github.com/haakonleg/imt2681-assig2/ticker"
+	"github.com/haakonleg/imt2681-assig2/track"
 )
 
 // App must be instantiated with the url to the mongodb database, database name and the port for the API to listen on
@@ -20,59 +18,48 @@ type App struct {
 	ListenPort  string
 	TickerLimit int64
 
-	db        Database
-	startTime time.Time
-}
-
-// Route the API request to handlers
-func (app *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	req := createRequest(w, r, r.Method)
-	path := strings.TrimPrefix(r.URL.Path, apiPath)
-
-	// GET /api
-	if len(path) == 0 && req.method == GET {
-		getAPIInfo(req, &app.startTime)
-		return
-	}
-
-	// Get next path
-	var nextpath string
-	if i := strings.Index(path, "/"); i == -1 {
-		nextpath = path
-	} else {
-		nextpath = path[:i]
-	}
-
-	switch nextpath {
-	case "track":
-		handleTrackRequest(req, &app.db, path)
-	case "ticker":
-		handleTickerRequest(req, &app.db, path, app.TickerLimit)
-	case "webhook":
-		handleWebhookRequest(req, &app.db, path)
-	case "admin":
-	default:
-		http.NotFound(req.w, req.r)
-	}
+	db            *mdb.Database
+	infoHandler   *ApiInfoHandler
+	trackHandler  *track.TrackHandler
+	tickerHandler *ticker.TickerHandler
 }
 
 // StartServer starts listening and serving the API server
 func (app *App) StartServer() {
-	app.startTime = time.Now()
 
 	// Try connect to mongoDB
-	app.db = Database{MongoURL: app.MongoURL, DBName: app.DBName}
+	app.db = &mdb.Database{MongoURL: app.MongoURL, DBName: app.DBName}
 	app.db.createConnection()
 	fmt.Println("Connected to mongoDB")
 
-	// Configure redirect and 404 not found handler, and direct requests to the API path to the handler
-	http.Handle("/", http.NotFoundHandler())
-	http.Handle(rootPath, http.RedirectHandler(apiPath, 301))
-	http.Handle(apiPath, app)
+	// Create handlers
+	app.infoHandler = NewInfoHandler()
+	app.trackHandler = NewTrackHandler(app.db)
+	app.tickerHandler = NewTickerHandler(app.TickerLimit, app.db)
+
+	// Instantiate router, and configure the paths
+	r := router.NewRouter()
+
+	// Redirect to /paragliding/api
+	r.Handle("GET", "/paragliding", func(req *router.Request) {
+		req.Redirect("/paragliding/api")
+	})
+
+	// Track routes
+	r.Handle("GET", "/paragliding/api", app.infoHandler.getAPIInfo)
+	r.Handle("POST", "/paragliding/api/track", app.trackHandler.PostTrack)
+	r.Handle("GET", "/paragliding/api/track", app.trackHandler.GetAllTracks)
+	r.Handle("GET", "/paragliding/api/track/{id}", app.trackHandler.GetTrack)
+	r.Handle("GET", "/paragliding/api/track/{id}/{field}", app.trackHandler.GetTrackField)
+
+	// Ticker routes
+	r.Handle("GET", "/paragliding/api/ticker/latest", app.tickerHandler.GetLatestTimestamp)
+	r.Handle("GET", "/paragliding/api/ticker", app.tickerHandler.GetTicker)
+	r.Handle("GET", "/paragliding/api/ticker/{timestamp}", app.tickerHandler.GetTicker)
 
 	// Start listen
 	fmt.Printf("Server listening on port %s\n", app.ListenPort)
-	if err := http.ListenAndServe(":"+app.ListenPort, nil); err != nil {
+	if err := http.ListenAndServe(":"+app.ListenPort, &r); err != nil {
 		log.Fatal(err.Error())
 	}
 }

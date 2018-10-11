@@ -1,4 +1,4 @@
-package paragliding
+package track
 
 import (
 	"time"
@@ -20,7 +20,7 @@ type Track struct {
 }
 
 // Creates a new track object out of a parsed IGC track from goigc
-func createTrack(igc *igc.Track, url string) Track {
+func CreateTrack(igc *igc.Track, url string) Track {
 	return Track{
 		ID:          objectid.New(),
 		Ts:          nowMilli(),

@@ -1,4 +1,4 @@
-package paragliding
+package ticker
 
 import (
 	"errors"
@@ -6,20 +6,33 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/haakonleg/imt2681-assig2/mdb"
+	"github.com/haakonleg/imt2681-assig2/router"
 	"github.com/mongodb/mongo-go-driver/bson"
 
 	"github.com/mongodb/mongo-go-driver/mongo/findopt"
 )
 
+type TickerHandler struct {
+	tickerLimit int64
+	db          *mdb.Database
+}
+
+func NewTickerHandler(tickerLimit int64, db *mdb.Database) *TickerHandler {
+	return &TickerHandler{
+		tickerLimit: tickerLimit,
+		db:          db}
+}
+
 // Finds the timestamp of the latest added track in the database
-func findLatestTimestamp(db *Database) (int64, error) {
+func (th *TickerHandler) findLatestTimestamp() (int64, error) {
 	// Sort by timestamp in decsending order, and limit to one result
 	findopts := []findopt.Find{
 		findopt.Sort(bson.NewDocument(bson.EC.Int64("ts", -1))),
 		findopt.Projection(bson.NewDocument(bson.EC.Int64("ts", 1))),
 		findopt.Limit(1)}
 
-	tracks, err := db.Find(TRACKS, nil, findopts)
+	tracks, err := th.db.Find(TRACKS, nil, findopts)
 	if err != nil {
 		return -1, errors.New("Internal database error")
 	}
@@ -30,8 +43,8 @@ func findLatestTimestamp(db *Database) (int64, error) {
 	return tracks[0].(Track).Ts, nil
 }
 
-func latestTimestamp(req *Request, db *Database) {
-	ts, err := findLatestTimestamp(db)
+func (th *TickerHandler) GetLatestTimestamp(req *router.Request) {
+	ts, err := th.findLatestTimestamp()
 	if err != nil {
 		req.SendError(err.Error(), http.StatusBadRequest)
 		return
@@ -41,7 +54,19 @@ func latestTimestamp(req *Request, db *Database) {
 }
 
 // GET /api/ticker
-func getTicker(req *Request, db *Database, timestampLimit int64, tickerLimit int64) {
+func (th *TickerHandler) GetTicker(req *router.Request) {
+	var timestampLimit int64
+	if len(req.Vars) == 0 {
+		timestampLimit = 0
+	} else {
+		ts, err := strconv.ParseInt(req.Vars[0], 10, 64)
+		if err != nil {
+			req.SendError("Invalid timestamp", http.StatusBadRequest)
+			return
+		}
+		timestampLimit = ts
+	}
+
 	// Measure time
 	start := time.Now()
 
@@ -55,7 +80,7 @@ func getTicker(req *Request, db *Database, timestampLimit int64, tickerLimit int
 	}
 
 	// Get latest timestamp
-	latestTs, err := findLatestTimestamp(db)
+	latestTs, err := th.findLatestTimestamp()
 	if err != nil {
 		req.SendError(err.Error(), http.StatusBadRequest)
 		return
@@ -68,9 +93,9 @@ func getTicker(req *Request, db *Database, timestampLimit int64, tickerLimit int
 		findopt.Projection(bson.NewDocument(bson.EC.Int64("ts", 1))),
 		findopt.Sort(bson.NewDocument(bson.EC.Int64("ts", 1))),
 		findopt.Max(bson.NewDocument(bson.EC.Int64("ts", timestampLimit))),
-		findopt.Limit(tickerLimit)}
+		findopt.Limit(th.tickerLimit)}
 
-	tracks, err := db.Find(TRACKS, nil, findopts)
+	tracks, err := th.db.Find(TRACKS, nil, findopts)
 	if err != nil {
 		req.SendError("Internal database error", http.StatusInternalServerError)
 		return

@@ -1,4 +1,4 @@
-package paragliding
+package router
 
 import (
 	"encoding/json"
@@ -9,37 +9,17 @@ import (
 )
 
 type ResponseType int
-type Method int
 
 const (
 	JSON ResponseType = iota
 	TEXT
-
-	GET Method = iota
-	POST
-	DELETE
 )
 
 // Request contains the context of the HTTP request, it also has some helper methods
 type Request struct {
-	w      http.ResponseWriter
-	r      *http.Request
-	method Method
-}
-
-func createRequest(w http.ResponseWriter, r *http.Request, method string) *Request {
-	var req Request
-	req.w = w
-	req.r = r
-	switch method {
-	case "GET":
-		req.method = GET
-	case "POST":
-		req.method = POST
-	case "DELETE":
-		req.method = DELETE
-	}
-	return &req
+	w    http.ResponseWriter
+	r    *http.Request
+	Vars []string
 }
 
 // SetResponseType sets the response type of the HTTP response
@@ -96,4 +76,8 @@ func (req *Request) SendError(message string, statusCode int) {
 		Error string `json:"error"`
 	}{Error: message}
 	req.SendJSON(&err, statusCode)
+}
+
+func (req *Request) Redirect(path string) {
+	http.Redirect(req.w, req.r, path, 301)
 }
