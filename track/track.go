@@ -61,7 +61,7 @@ func (th *TrackHandler) GetTrack(req *router.Request) {
 	}
 	filter := bson.NewDocument(bson.EC.ObjectID("_id", objectID))
 
-	tracks := make([]mdb.Track, 0)
+	tracks := make([]*mdb.Track, 0)
 	if err := th.db.Find(mdb.TRACKS, filter, nil, &tracks); err != nil {
 		req.SendError("Internal database error", http.StatusInternalServerError)
 		return
@@ -90,7 +90,7 @@ func (th *TrackHandler) GetTrackField(req *router.Request) {
 	findopts := []findopt.Find{
 		findopt.Projection(bson.NewDocument(bson.EC.Int64(field, 1)))}
 
-	tracks := make([]mdb.Track, 0)
+	tracks := make([]*mdb.Track, 0)
 	if err := th.db.Find(mdb.TRACKS, filter, findopts, &tracks); err != nil {
 		req.SendError("Internal database error", http.StatusInternalServerError)
 		return

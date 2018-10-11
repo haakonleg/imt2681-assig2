@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"reflect"
 
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/mongo"
@@ -89,7 +90,7 @@ func (db *Database) Find(collection DatabaseCollection, filter interface{}, opts
 			*resArr = append(*resArr, elem)
 		}
 	default:
-		log.Fatal("This type is not supported")
+		log.Fatalf("This type is not supported: %s", reflect.TypeOf(resArr))
 	}
 	return nil
 }

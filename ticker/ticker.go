@@ -32,8 +32,8 @@ func (th *TickerHandler) findLatestTimestamp() (int64, error) {
 		findopt.Projection(bson.NewDocument(bson.EC.Int64("ts", 1))),
 		findopt.Limit(1)}
 
-	tracks := make([]mdb.Track, 0)
-	if err := th.db.Find(mdb.TRACKS, nil, findopts, tracks); err != nil {
+	tracks := make([]*mdb.Track, 0)
+	if err := th.db.Find(mdb.TRACKS, nil, findopts, &tracks); err != nil {
 		return -1, errors.New("Internal database error")
 	}
 	if len(tracks) < 1 {
@@ -95,8 +95,8 @@ func (th *TickerHandler) GetTicker(req *router.Request) {
 		findopt.Max(bson.NewDocument(bson.EC.Int64("ts", timestampLimit))),
 		findopt.Limit(th.tickerLimit)}
 
-	tracks := make([]mdb.Track, 0)
-	if err := th.db.Find(mdb.TRACKS, nil, findopts, tracks); err != nil {
+	tracks := make([]*mdb.Track, 0)
+	if err := th.db.Find(mdb.TRACKS, nil, findopts, &tracks); err != nil {
 		req.SendError("Internal database error", http.StatusInternalServerError)
 		return
 	}

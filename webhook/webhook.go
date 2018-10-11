@@ -32,7 +32,7 @@ func (wh *WebhookHandler) CheckInvokeWebhooks(db *mdb.Database) {
 		bson.EC.SubDocumentFromElements("triggerCount",
 			bson.EC.Int64("$eq", 0)))
 
-	webhooks := make([]mdb.Webhook, 0)
+	webhooks := make([]*mdb.Webhook, 0)
 	wh.db.Find(mdb.WEBHOOKS, filter, nil, &webhooks)
 
 	// Invoke the webhooks
@@ -50,7 +50,7 @@ func (wh *WebhookHandler) CheckInvokeWebhooks(db *mdb.Database) {
 }
 
 // invokeWebhook sends a POST request to the webhook containing information about added tracks
-func invokeWebhook(webhook mdb.Webhook, db *mdb.Database) {
+func invokeWebhook(webhook *mdb.Webhook, db *mdb.Database) {
 	//req, err := http.NewRequest(http.MethodPost, webhook.WebhookURL)
 }
 
