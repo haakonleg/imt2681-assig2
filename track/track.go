@@ -7,8 +7,8 @@ import (
 	"path"
 	"strings"
 
-	"github.com/haakonleg/imt2681-assig2/router"
 	"github.com/haakonleg/imt2681-assig2/mdb"
+	"github.com/haakonleg/imt2681-assig2/router"
 	"github.com/mongodb/mongo-go-driver/mongo/findopt"
 
 	igc "github.com/marni/goigc"
@@ -33,8 +33,8 @@ func (th *TrackHandler) GetAllTracks(req *router.Request) {
 		findopt.Projection(bson.NewDocument(bson.EC.Int64("_id", 1)))}
 
 	// Get all track IDs in database
-	tracks, err := th.db.Find(TRACKS, nil, findopts)
-	if err != nil {
+	tracks := make([]*mdb.Track, 0)
+	if err := th.db.Find(mdb.TRACKS, nil, findopts, &tracks); err != nil {
 		req.SendError("Internal database error", http.StatusInternalServerError)
 		return
 	}
@@ -42,7 +42,7 @@ func (th *TrackHandler) GetAllTracks(req *router.Request) {
 	// Retrieve all the IDs into a slice
 	ids := make([]string, 0, len(tracks))
 	for _, track := range tracks {
-		ids = append(ids, track.(Track).ID.Hex())
+		ids = append(ids, track.ID.Hex())
 	}
 
 	req.SendJSON(&ids, http.StatusOK)
@@ -61,8 +61,8 @@ func (th *TrackHandler) GetTrack(req *router.Request) {
 	}
 	filter := bson.NewDocument(bson.EC.ObjectID("_id", objectID))
 
-	tracks, err := th.db.Find(TRACKS, filter, nil)
-	if err != nil {
+	tracks := make([]mdb.Track, 0)
+	if err := th.db.Find(mdb.TRACKS, filter, nil, &tracks); err != nil {
 		req.SendError("Internal database error", http.StatusInternalServerError)
 		return
 	}
@@ -90,8 +90,8 @@ func (th *TrackHandler) GetTrackField(req *router.Request) {
 	findopts := []findopt.Find{
 		findopt.Projection(bson.NewDocument(bson.EC.Int64(field, 1)))}
 
-	tracks, err := th.db.Find(TRACKS, filter, findopts)
-	if err != nil {
+	tracks := make([]mdb.Track, 0)
+	if err := th.db.Find(mdb.TRACKS, filter, findopts, &tracks); err != nil {
 		req.SendError("Internal database error", http.StatusInternalServerError)
 		return
 	}
@@ -100,7 +100,7 @@ func (th *TrackHandler) GetTrackField(req *router.Request) {
 		return
 	}
 
-	track := tracks[0].(Track)
+	track := tracks[0]
 	switch field {
 	case "pilot":
 		req.SendText(track.Pilot)
@@ -145,8 +145,8 @@ func (th *TrackHandler) PostTrack(req *router.Request) {
 	}
 
 	// Send response containing the ID to the inserted track
-	newTrack := createTrack(&igc, request.URL)
-	id, err := th.db.InsertObject(TRACKS, &newTrack)
+	newTrack := mdb.CreateTrack(&igc, request.URL)
+	id, err := th.db.InsertObject(mdb.TRACKS, &newTrack)
 	if err != nil {
 		req.SendError("Internal database error", http.StatusInternalServerError)
 		return

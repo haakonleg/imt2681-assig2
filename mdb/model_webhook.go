@@ -1,4 +1,4 @@
-package webhook
+package mdb
 
 import "github.com/mongodb/mongo-go-driver/bson/objectid"
 
@@ -14,7 +14,7 @@ type Webhook struct {
 	LastInvoked     int64             `bson:"lastInvoked" "json:"-"`
 }
 
-func createWebhook(webhookUrl string, minTriggerValue int64) Webhook {
+func CreateWebhook(webhookUrl string, minTriggerValue int64) Webhook {
 	// If minTriggerValue was not specified, set to 1
 	if minTriggerValue == 0 {
 		minTriggerValue = 1

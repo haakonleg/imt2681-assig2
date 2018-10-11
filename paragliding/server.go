@@ -9,6 +9,7 @@ import (
 	"github.com/haakonleg/imt2681-assig2/router"
 	"github.com/haakonleg/imt2681-assig2/ticker"
 	"github.com/haakonleg/imt2681-assig2/track"
+	"github.com/haakonleg/imt2681-assig2/webhook"
 )
 
 // App must be instantiated with the url to the mongodb database, database name and the port for the API to listen on
@@ -18,10 +19,11 @@ type App struct {
 	ListenPort  string
 	TickerLimit int64
 
-	db            *mdb.Database
-	infoHandler   *ApiInfoHandler
-	trackHandler  *track.TrackHandler
-	tickerHandler *ticker.TickerHandler
+	db             *mdb.Database
+	infoHandler    *ApiInfoHandler
+	trackHandler   *track.TrackHandler
+	tickerHandler  *ticker.TickerHandler
+	webhookHandler *webhook.WebhookHandler
 }
 
 // StartServer starts listening and serving the API server
@@ -29,13 +31,14 @@ func (app *App) StartServer() {
 
 	// Try connect to mongoDB
 	app.db = &mdb.Database{MongoURL: app.MongoURL, DBName: app.DBName}
-	app.db.createConnection()
+	app.db.CreateConnection()
 	fmt.Println("Connected to mongoDB")
 
 	// Create handlers
 	app.infoHandler = NewInfoHandler()
-	app.trackHandler = NewTrackHandler(app.db)
-	app.tickerHandler = NewTickerHandler(app.TickerLimit, app.db)
+	app.trackHandler = track.NewTrackHandler(app.db)
+	app.tickerHandler = ticker.NewTickerHandler(app.TickerLimit, app.db)
+	app.webhookHandler = webhook.NewWebhookHandler(app.db)
 
 	// Instantiate router, and configure the paths
 	r := router.NewRouter()

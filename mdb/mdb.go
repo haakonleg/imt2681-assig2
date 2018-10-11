@@ -5,22 +5,21 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/haakonleg/imt2681-assig2/track"
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/mongo"
 	"github.com/mongodb/mongo-go-driver/mongo/findopt"
 )
 
 // An enum of the database collections
-type databaseCollection int
+type DatabaseCollection int
 
 const (
-	TRACKS databaseCollection = iota
+	TRACKS DatabaseCollection = iota
 	WEBHOOKS
 )
 
 // Stringer for databaseCollection type
-func (dc databaseCollection) String() string {
+func (dc DatabaseCollection) String() string {
 	switch dc {
 	case TRACKS:
 		return "tracks"
@@ -51,7 +50,7 @@ func (db *Database) CreateConnection() {
 }
 
 // InsertObject inserts an object into the specified collection in the database
-func (db *Database) InsertObject(collection databaseCollection, object interface{}) (string, error) {
+func (db *Database) InsertObject(collection DatabaseCollection, object interface{}) (string, error) {
 	col := db.database.Collection(collection.String())
 	res, err := col.InsertOne(context.Background(), object)
 	if err != nil {
@@ -62,38 +61,41 @@ func (db *Database) InsertObject(collection databaseCollection, object interface
 }
 
 // Find queries documents from the specified collection in the database
-func (db *Database) Find(collection databaseCollection, filter interface{}, opts []findopt.Find) ([]interface{}, error) {
+func (db *Database) Find(collection DatabaseCollection, filter interface{}, opts []findopt.Find, results interface{}) error {
 	col := db.database.Collection(collection.String())
 	cur, err := col.Find(context.Background(), filter, opts...)
 	if err != nil {
 		fmt.Println(err)
-		return nil, err
+		return err
 	}
 	defer cur.Close(context.Background())
 
-	results := make([]interface{}, 0)
-	for cur.Next(context.Background()) {
-		switch collection {
-		case TRACKS:
-			var track track.Track
-			if err := cur.Decode(&track); err != nil {
-				return nil, err
+	// Check that results is a slice and find its type
+	switch resArr := results.(type) {
+	case *[]*Track:
+		elem := &Track{}
+		for cur.Next(context.Background()) {
+			if err := cur.Decode(elem); err != nil {
+				return err
 			}
-			results = append(results, track)
-		case WEBHOOKS:
-			var webhook Webhook
-			if err := cur.Decode(&webhook); err != nil {
-				return nil, err
-			}
-			results = append(results, webhook)
+			*resArr = append(*resArr, elem)
 		}
+	case *[]*Webhook:
+		elem := &Webhook{}
+		for cur.Next(context.Background()) {
+			if err := cur.Decode(elem); err != nil {
+				return err
+			}
+			*resArr = append(*resArr, elem)
+		}
+	default:
+		log.Fatal("This type is not supported")
 	}
-
-	return results, nil
+	return nil
 }
 
 // Update updates documents in the specified collection in the database
-func (db *Database) Update(collection databaseCollection, filter interface{}, update interface{}) (*mongo.UpdateResult, error) {
+func (db *Database) Update(collection DatabaseCollection, filter interface{}, update interface{}) (*mongo.UpdateResult, error) {
 	col := db.database.Collection(collection.String())
 	ur, err := col.UpdateMany(context.Background(), filter, update)
 	if err != nil {

@@ -32,15 +32,15 @@ func (th *TickerHandler) findLatestTimestamp() (int64, error) {
 		findopt.Projection(bson.NewDocument(bson.EC.Int64("ts", 1))),
 		findopt.Limit(1)}
 
-	tracks, err := th.db.Find(TRACKS, nil, findopts)
-	if err != nil {
+	tracks := make([]mdb.Track, 0)
+	if err := th.db.Find(mdb.TRACKS, nil, findopts, tracks); err != nil {
 		return -1, errors.New("Internal database error")
 	}
 	if len(tracks) < 1 {
 		return -1, errors.New("No tracks added yet")
 	}
 
-	return tracks[0].(Track).Ts, nil
+	return tracks[0].Ts, nil
 }
 
 func (th *TickerHandler) GetLatestTimestamp(req *router.Request) {
@@ -95,8 +95,8 @@ func (th *TickerHandler) GetTicker(req *router.Request) {
 		findopt.Max(bson.NewDocument(bson.EC.Int64("ts", timestampLimit))),
 		findopt.Limit(th.tickerLimit)}
 
-	tracks, err := th.db.Find(TRACKS, nil, findopts)
-	if err != nil {
+	tracks := make([]mdb.Track, 0)
+	if err := th.db.Find(mdb.TRACKS, nil, findopts, tracks); err != nil {
 		req.SendError("Internal database error", http.StatusInternalServerError)
 		return
 	}
@@ -106,10 +106,10 @@ func (th *TickerHandler) GetTicker(req *router.Request) {
 	}
 
 	// Add start and stop timestamps and IDs to struct
-	ticker.TStart = tracks[0].(Track).Ts
-	ticker.TStop = tracks[len(tracks)-1].(Track).Ts
-	for _, track := range tracks {
-		id := track.(Track).ID.Hex()
+	ticker.TStart = tracks[0].Ts
+	ticker.TStop = tracks[len(tracks)-1].Ts
+	for _, tr := range tracks {
+		id := tr.ID.Hex()
 		ticker.Tracks = append(ticker.Tracks, id)
 	}
 
