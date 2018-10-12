@@ -74,16 +74,16 @@ func (db *Database) Find(collection DatabaseCollection, filter interface{}, opts
 	// Check that results is a slice and find its type
 	switch resArr := results.(type) {
 	case *[]*Track:
-		elem := &Track{}
 		for cur.Next(context.Background()) {
+			elem := new(Track)
 			if err := cur.Decode(elem); err != nil {
 				return err
 			}
 			*resArr = append(*resArr, elem)
 		}
 	case *[]*Webhook:
-		elem := &Webhook{}
 		for cur.Next(context.Background()) {
+			elem := new(Webhook)
 			if err := cur.Decode(elem); err != nil {
 				return err
 			}
@@ -104,6 +104,28 @@ func (db *Database) Update(collection DatabaseCollection, filter interface{}, up
 		return nil, err
 	}
 	return ur, nil
+}
+
+// Count returns the total amount of documents in the specified collection in the database
+func (db *Database) Count(collection DatabaseCollection) (int64, error) {
+	col := db.database.Collection(collection.String())
+	cnt, err := col.Count(context.Background(), nil, nil)
+	if err != nil {
+		fmt.Println(err)
+		return -1, err
+	}
+	return cnt, nil
+}
+
+// Delete removes all the documents in the specified collection from the database
+func (db *Database) Delete(collection DatabaseCollection) (*mongo.DeleteResult, error) {
+	col := db.database.Collection(collection.String())
+	dRes, err := col.DeleteMany(context.Background(), nil, nil)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+	return dRes, nil
 }
 
 // Creates a descending index on the timestamp field in tracks, to be able to support certain queries and better performance

@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/haakonleg/imt2681-assig2/admin"
 	"github.com/haakonleg/imt2681-assig2/mdb"
 	"github.com/haakonleg/imt2681-assig2/router"
 	"github.com/haakonleg/imt2681-assig2/ticker"
@@ -24,25 +25,10 @@ type App struct {
 	trackHandler   *track.TrackHandler
 	tickerHandler  *ticker.TickerHandler
 	webhookHandler *webhook.WebhookHandler
+	adminHandler   *admin.AdminHandler
 }
 
-// StartServer starts listening and serving the API server
-func (app *App) StartServer() {
-
-	// Try connect to mongoDB
-	app.db = &mdb.Database{MongoURL: app.MongoURL, DBName: app.DBName}
-	app.db.CreateConnection()
-	fmt.Println("Connected to mongoDB")
-
-	// Create handlers
-	app.infoHandler = NewInfoHandler()
-	app.trackHandler = track.NewTrackHandler(app.db)
-	app.tickerHandler = ticker.NewTickerHandler(app.TickerLimit, app.db)
-	app.webhookHandler = webhook.NewWebhookHandler(app.db)
-
-	// Instantiate router, and configure the paths
-	r := router.NewRouter()
-
+func (app *App) configureRoutes(r *router.Router) {
 	// Redirect to /paragliding/api
 	r.Handle("GET", "/paragliding", func(req *router.Request) {
 		req.Redirect("/paragliding/api")
@@ -60,9 +46,40 @@ func (app *App) StartServer() {
 	r.Handle("GET", "/paragliding/api/ticker", app.tickerHandler.GetTicker)
 	r.Handle("GET", "/paragliding/api/ticker/{timestamp}", app.tickerHandler.GetTicker)
 
+	// Admin routes
+	r.Handle("GET", "/admin/api/tracks_count", app.adminHandler.GetTrackCount)
+	r.Handle("DELETE", "/admin/api/tracks", app.adminHandler.DeleteAllTracks)
+}
+
+func (app *App) configureValidators(r *router.Router) {
+	r.Validate("id", track.ValidateTrackID)
+	r.Validate("field", track.ValidateTrackField)
+	r.Validate("timestamp", ticker.ValidateTimestamp)
+}
+
+// StartServer starts listening and serving the API server
+func (app *App) StartServer() {
+
+	// Try connect to mongoDB
+	app.db = &mdb.Database{MongoURL: app.MongoURL, DBName: app.DBName}
+	app.db.CreateConnection()
+	fmt.Println("Connected to mongoDB")
+
+	// Create handlers
+	app.infoHandler = NewInfoHandler()
+	app.trackHandler = track.NewTrackHandler(app.db)
+	app.tickerHandler = ticker.NewTickerHandler(app.TickerLimit, app.db)
+	app.webhookHandler = webhook.NewWebhookHandler(app.db)
+	app.adminHandler = admin.NewAdminHandler(app.db)
+
+	// Instantiate router, and configure the handlers and paths
+	r := router.NewRouter()
+	app.configureRoutes(r)
+	app.configureValidators(r)
+
 	// Start listen
 	fmt.Printf("Server listening on port %s\n", app.ListenPort)
-	if err := http.ListenAndServe(":"+app.ListenPort, &r); err != nil {
+	if err := http.ListenAndServe(":"+app.ListenPort, r); err != nil {
 		log.Fatal(err.Error())
 	}
 }

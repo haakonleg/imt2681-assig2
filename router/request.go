@@ -17,18 +17,18 @@ const (
 
 // Request contains the context of the HTTP request, it also has some helper methods
 type Request struct {
-	w    http.ResponseWriter
-	r    *http.Request
-	Vars []string
+	W    http.ResponseWriter
+	R    *http.Request
+	Vars map[string]interface{}
 }
 
 // SetResponseType sets the response type of the HTTP response
 func (req *Request) SetResponseType(responseType ResponseType) {
 	switch responseType {
 	case JSON:
-		req.w.Header().Set("Content-Type", "application/json")
+		req.W.Header().Set("Content-Type", "application/json")
 	case TEXT:
-		req.w.Header().Set("Content-Type", "text/plain")
+		req.W.Header().Set("Content-Type", "text/plain")
 	}
 }
 
@@ -40,21 +40,22 @@ func (req *Request) SendJSON(jsonStruct interface{}, statusCode int) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	req.w.WriteHeader(statusCode)
-	req.w.Write(res)
+	req.W.WriteHeader(statusCode)
+	req.W.Write(res)
 }
 
 // SendText sends a plain text message as response to the request
-func (req *Request) SendText(text string) {
+func (req *Request) SendText(text string, statusCode int) {
 	req.SetResponseType(TEXT)
-	fmt.Fprint(req.w, text)
+	req.W.WriteHeader(statusCode)
+	fmt.Fprint(req.W, text)
 }
 
 // ParseJSONRequest parses the JSON contents of a POST request, takes
 // a struct as parameter with JSON fields and writes the contents to it
 func (req *Request) ParseJSONRequest(jsonStruct interface{}) error {
-	body, err := ioutil.ReadAll(req.r.Body)
-	defer req.r.Body.Close()
+	body, err := ioutil.ReadAll(req.R.Body)
+	defer req.R.Body.Close()
 
 	if err != nil {
 		fmt.Println(err)
@@ -78,6 +79,7 @@ func (req *Request) SendError(message string, statusCode int) {
 	req.SendJSON(&err, statusCode)
 }
 
+// Redirect redirects the request to another URL
 func (req *Request) Redirect(path string) {
-	http.Redirect(req.w, req.r, path, 301)
+	http.Redirect(req.W, req.R, path, http.StatusPermanentRedirect)
 }

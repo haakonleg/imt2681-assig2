@@ -48,10 +48,25 @@ func (th *TrackHandler) GetAllTracks(req *router.Request) {
 	req.SendJSON(&ids, http.StatusOK)
 }
 
+// ValidateTrackID is the validation function used by the router to validate the track ID
+// the ID is a hex encoded string consisting of 24 characters
+func ValidateTrackID(variable string) (bool, interface{}) {
+	validChars := "0123456789abcdef"
+	if len(variable) != 24 {
+		return false, nil
+	}
+	for _, ch := range variable {
+		if !strings.ContainsRune(validChars, ch) {
+			return false, nil
+		}
+	}
+	return true, variable
+}
+
 // GET /api/track/{id}
 // Retrieves a track by the value of its ObjectID (hex encoded string)
 func (th *TrackHandler) GetTrack(req *router.Request) {
-	id := req.Vars[0]
+	id := req.Vars["id"].(string)
 
 	// Only get the requested track
 	objectID, err := objectid.FromHex(id)
@@ -74,16 +89,27 @@ func (th *TrackHandler) GetTrack(req *router.Request) {
 	req.SendJSON(&tracks[0], http.StatusOK)
 }
 
+// ValidateTrackField is the validator used by the router to validate a request for the field
+// in a Track object
+func ValidateTrackField(variable string) (bool, interface{}) {
+	validFields := []string{
+		"pilot", "glider",
+		"glider_id", "track_length",
+		"H_date", "track_src_url"}
+	for _, field := range validFields {
+		if variable == field {
+			return true, variable
+		}
+	}
+	return false, nil
+}
+
 // GET /api/track/{id}/{field}
 func (th *TrackHandler) GetTrackField(req *router.Request) {
-	id := req.Vars[0]
-	field := req.Vars[1]
+	id := req.Vars["id"].(string)
+	field := req.Vars["field"].(string)
 
-	objectID, err := objectid.FromHex(id)
-	if err != nil {
-		req.SendError("Invalid ID", http.StatusBadRequest)
-		return
-	}
+	objectID, _ := objectid.FromHex(id)
 
 	// Only get the requested field
 	filter := bson.NewDocument(bson.EC.ObjectID("_id", objectID))
@@ -100,21 +126,7 @@ func (th *TrackHandler) GetTrackField(req *router.Request) {
 		return
 	}
 
-	track := tracks[0]
-	switch field {
-	case "pilot":
-		req.SendText(track.Pilot)
-	case "glider":
-		req.SendText(track.Glider)
-	case "glider_id":
-		req.SendText(track.GliderID)
-	case "track_length":
-		req.SendText(track.TrackLength)
-	case "H_date":
-		req.SendText(track.HDate)
-	case "track_src_url":
-		req.SendText(track.TrackSrcURL)
-	}
+	req.SendText(tracks[0].Field(field), http.StatusOK)
 }
 
 // POST /api/track

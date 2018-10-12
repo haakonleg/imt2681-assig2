@@ -1,6 +1,7 @@
 package mdb
 
 import (
+	"strconv"
 	"time"
 
 	igc "github.com/marni/goigc"
@@ -28,8 +29,27 @@ func CreateTrack(igc *igc.Track, url string) Track {
 		Pilot:       igc.Pilot,
 		Glider:      igc.GliderType,
 		GliderID:    igc.GliderID,
-		TrackLength: calTrackLen(&igc.Points).String(),
+		TrackLength: calTrackLen(igc.Points),
 		TrackSrcURL: url}
+}
+
+func (t *Track) Field(field string) string {
+	switch field {
+	case "pilot":
+		return t.Pilot
+	case "glider":
+		return t.Glider
+	case "glider_id":
+		return t.GliderID
+	case "track_length":
+		return t.TrackLength
+	case "H_date":
+		return t.HDate
+	case "track_src_url":
+		return t.TrackSrcURL
+	default:
+		return ""
+	}
 }
 
 // Get current UNIX timestamp in miliseconds
@@ -37,12 +57,11 @@ func nowMilli() int64 {
 	return time.Now().UnixNano() / int64(time.Millisecond)
 }
 
-// Calculate track length, time of last point subtracted by time of first
-func calTrackLen(points *[]igc.Point) time.Duration {
-	arrLen := len(*points)
-
-	firstTime := (*points)[0].Time
-	lastTime := (*points)[arrLen-1].Time
-
-	return lastTime.Sub(firstTime)
+// Calculate track length, the sum of all distances between each point
+func calTrackLen(points []igc.Point) string {
+	d := 0.0
+	for i := 0; i < len(points)-1; i++ {
+		d += points[i].Distance(points[i+1])
+	}
+	return strconv.FormatFloat(d, 'f', 2, 64) + "km"
 }

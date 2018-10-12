@@ -50,21 +50,23 @@ func (th *TickerHandler) GetLatestTimestamp(req *router.Request) {
 		return
 	}
 
-	req.SendText(strconv.FormatInt(ts, 10))
+	req.SendText(strconv.FormatInt(ts, 10), http.StatusOK)
+}
+
+func ValidateTimestamp(variable string) (bool, interface{}) {
+	ts, err := strconv.ParseInt(variable, 10, 64)
+	if err != nil {
+		return false, nil
+	}
+	return true, ts
 }
 
 // GET /api/ticker
 func (th *TickerHandler) GetTicker(req *router.Request) {
-	var timestampLimit int64
-	if len(req.Vars) == 0 {
-		timestampLimit = 0
-	} else {
-		ts, err := strconv.ParseInt(req.Vars[0], 10, 64)
-		if err != nil {
-			req.SendError("Invalid timestamp", http.StatusBadRequest)
-			return
-		}
-		timestampLimit = ts
+	// Check if there is a timestamp limit specified in the request
+	timestampLimit, ok := req.Vars["timestamp"]
+	if !ok {
+		timestampLimit = int64(0)
 	}
 
 	// Measure time
@@ -92,7 +94,7 @@ func (th *TickerHandler) GetTicker(req *router.Request) {
 	findopts := []findopt.Find{
 		findopt.Projection(bson.NewDocument(bson.EC.Int64("ts", 1))),
 		findopt.Sort(bson.NewDocument(bson.EC.Int64("ts", 1))),
-		findopt.Max(bson.NewDocument(bson.EC.Int64("ts", timestampLimit))),
+		findopt.Max(bson.NewDocument(bson.EC.Int64("ts", timestampLimit.(int64)))),
 		findopt.Limit(th.tickerLimit)}
 
 	tracks := make([]*mdb.Track, 0)
@@ -101,7 +103,7 @@ func (th *TickerHandler) GetTicker(req *router.Request) {
 		return
 	}
 	if len(tracks) < 1 {
-		req.SendError("No tracks added yet", http.StatusBadRequest)
+		req.SendError("No more tracks", http.StatusBadRequest)
 		return
 	}
 
