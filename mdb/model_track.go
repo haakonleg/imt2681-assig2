@@ -1,9 +1,7 @@
 package mdb
 
 import (
-	"strconv"
-	"time"
-
+	"github.com/haakonleg/imt2681-assig2/util"
 	igc "github.com/marni/goigc"
 	"github.com/mongodb/mongo-go-driver/bson/objectid"
 )
@@ -24,12 +22,12 @@ type Track struct {
 func CreateTrack(igc *igc.Track, url string) Track {
 	return Track{
 		ID:          objectid.New(),
-		Ts:          nowMilli(),
+		Ts:          util.NowMilli(),
 		HDate:       igc.Date.String(),
 		Pilot:       igc.Pilot,
 		Glider:      igc.GliderType,
 		GliderID:    igc.GliderID,
-		TrackLength: calTrackLen(igc.Points),
+		TrackLength: util.CalTrackLen(igc.Points),
 		TrackSrcURL: url}
 }
 
@@ -50,18 +48,4 @@ func (t *Track) Field(field string) string {
 	default:
 		return ""
 	}
-}
-
-// Get current UNIX timestamp in miliseconds
-func nowMilli() int64 {
-	return time.Now().UnixNano() / int64(time.Millisecond)
-}
-
-// Calculate track length, the sum of all distances between each point
-func calTrackLen(points []igc.Point) string {
-	d := 0.0
-	for i := 0; i < len(points)-1; i++ {
-		d += points[i].Distance(points[i+1])
-	}
-	return strconv.FormatFloat(d, 'f', 2, 64) + "km"
 }

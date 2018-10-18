@@ -6,6 +6,7 @@ import (
 
 	"github.com/haakonleg/imt2681-assig2/mdb"
 	"github.com/haakonleg/imt2681-assig2/router"
+	"github.com/haakonleg/imt2681-assig2/util"
 	"github.com/mongodb/mongo-go-driver/bson"
 )
 
@@ -44,7 +45,7 @@ func (wh *WebhookHandler) CheckInvokeWebhooks(db *mdb.Database) {
 		updateDoc = bson.NewDocument(
 			bson.EC.SubDocumentFromElements("$set",
 				bson.EC.Int64("triggerCount", webhook.MinTriggerValue),
-				bson.EC.Int64("lastInvoked", nowMilli())))
+				bson.EC.Int64("lastInvoked", util.NowMilli())))
 		db.Update(mdb.WEBHOOKS, filter, updateDoc)
 	}
 }
