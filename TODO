@@ -1,0 +1,5 @@
+
+Todo:
+  ☐ Test if the distance calculation is correct
+  ☐ Finish webhook endpoint
+  ☐ Create independent slack webhook "clock trigger" executable for OpenStack

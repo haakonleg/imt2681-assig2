@@ -13,6 +13,14 @@ import (
 	"github.com/mongodb/mongo-go-driver/mongo/findopt"
 )
 
+type GetTickerResponse struct {
+	TLatest    int64    `json:"t_latest"`
+	TStart     int64    `json:"t_start"`
+	TStop      int64    `json:"t_stop"`
+	Tracks     []string `json:"tracks"`
+	Processing int64    `json:"processing"`
+}
+
 type TickerHandler struct {
 	tickerLimit int64
 	db          *mdb.Database
@@ -73,13 +81,7 @@ func (th *TickerHandler) GetTicker(req *router.Request) {
 	start := time.Now()
 
 	// The response to send
-	var ticker struct {
-		TLatest    int64    `json:"t_latest"`
-		TStart     int64    `json:"t_start"`
-		TStop      int64    `json:"t_stop"`
-		Tracks     []string `json:"tracks"`
-		Processing int64    `json:"processing"`
-	}
+	ticker := new(GetTickerResponse)
 
 	// Get latest timestamp
 	latestTs, err := th.findLatestTimestamp()
@@ -118,5 +120,5 @@ func (th *TickerHandler) GetTicker(req *router.Request) {
 	// Calculate time it took
 	ticker.Processing = int64(time.Since(start) / time.Millisecond)
 
-	req.SendJSON(&ticker, http.StatusOK)
+	req.SendJSON(ticker, http.StatusOK)
 }

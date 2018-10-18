@@ -16,6 +16,14 @@ import (
 	"github.com/mongodb/mongo-go-driver/bson/objectid"
 )
 
+type PostTrackRequest struct {
+	URL string `json:"url"`
+}
+
+type PostTrackResponse struct {
+	ID string `json:"id"`
+}
+
 type TrackHandler struct {
 	db *mdb.Database
 }
@@ -132,12 +140,10 @@ func (th *TrackHandler) GetTrackField(req *router.Request) {
 // POST /api/track
 // Register/upload a track
 func (th *TrackHandler) PostTrack(req *router.Request) {
-	var request struct {
-		URL string `json:"url"`
-	}
+	request := new(PostTrackRequest)
 
 	// Get the JSON post request
-	if err := req.ParseJSONRequest(&request); err != nil {
+	if err := req.ParseJSONRequest(request); err != nil {
 		req.SendError("Error parsing JSON request", http.StatusBadRequest)
 		return
 	}
@@ -164,13 +170,8 @@ func (th *TrackHandler) PostTrack(req *router.Request) {
 		return
 	}
 
-	response := struct {
-		ID string `json:"id"`
-	}{ID: id}
-	req.SendJSON(&response, http.StatusOK)
-
-	// Invoke webhooks
-	//checkInvokeWebhooks(th.db)
+	response := &PostTrackResponse{id}
+	req.SendJSON(response, http.StatusOK)
 }
 
 // Ensures that a link points to an IGC resource (but just that it is a valid URL and has an igc extension)
