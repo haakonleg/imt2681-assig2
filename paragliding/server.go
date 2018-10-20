@@ -46,6 +46,11 @@ func (app *App) configureRoutes(r *router.Router) {
 	r.Handle("GET", "/paragliding/api/ticker", app.tickerHandler.GetTicker)
 	r.Handle("GET", "/paragliding/api/ticker/{timestamp}", app.tickerHandler.GetTicker)
 
+	// Webhook routes
+	r.Handle("POST", "/paragliding/api/webhook/new_track", app.webhookHandler.PostWebhook)
+	r.Handle("GET", "/paragliding/api/webhook/new_track/{id}", app.webhookHandler.GetWebhook)
+	r.Handle("DELETE", "/paragliding/api/webhook/new_track/{id}", app.webhookHandler.DeleteWebhook)
+
 	// Admin routes
 	r.Handle("GET", "/admin/api/tracks_count", app.adminHandler.GetTrackCount)
 	r.Handle("DELETE", "/admin/api/tracks", app.adminHandler.DeleteAllTracks)
@@ -59,7 +64,6 @@ func (app *App) configureValidators(r *router.Router) {
 
 // StartServer starts listening and serving the API server
 func (app *App) StartServer() {
-
 	// Try connect to mongoDB
 	app.db = &mdb.Database{MongoURL: app.MongoURL, DBName: app.DBName}
 	app.db.CreateConnection()
@@ -71,6 +75,10 @@ func (app *App) StartServer() {
 	app.tickerHandler = ticker.NewTickerHandler(app.TickerLimit, app.db)
 	app.webhookHandler = webhook.NewWebhookHandler(app.db)
 	app.adminHandler = admin.NewAdminHandler(app.db)
+
+	// Registers a callback so that when a new track is registered, the webhook handler will check
+	// if any webhooks should be triggered
+	app.trackHandler.SetTrackRegisterCallback(app.webhookHandler.CheckInvokeWebhooks)
 
 	// Instantiate router, and configure the handlers and paths
 	r := router.NewRouter()

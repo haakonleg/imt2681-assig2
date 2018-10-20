@@ -7,7 +7,7 @@ require (
 	github.com/mongodb/mongo-go-driver v0.0.16
 	github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c // indirect
 	github.com/xdg/stringprep v1.0.0 // indirect
-	golang.org/x/crypto v0.0.0-20181009213950-7c1a557ab941 // indirect
-	golang.org/x/net v0.0.0-20181011144130-49bb7cea24b1 // indirect
+	golang.org/x/crypto v0.0.0-20181015023909-0c41d7ab0a0e // indirect
+	golang.org/x/net v0.0.0-20181017193950-04a2e542c03f // indirect
 	golang.org/x/sync v0.0.0-20180314180146-1d60e4601c6f // indirect
 )

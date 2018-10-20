@@ -118,9 +118,9 @@ func (db *Database) Count(collection DatabaseCollection) (int64, error) {
 }
 
 // Delete removes all the documents in the specified collection from the database
-func (db *Database) Delete(collection DatabaseCollection) (*mongo.DeleteResult, error) {
+func (db *Database) Delete(collection DatabaseCollection, filter interface{}) (*mongo.DeleteResult, error) {
 	col := db.database.Collection(collection.String())
-	dRes, err := col.DeleteMany(context.Background(), nil, nil)
+	dRes, err := col.DeleteMany(context.Background(), filter, nil)
 	if err != nil {
 		fmt.Println(err)
 		return nil, err

@@ -1,7 +1,6 @@
 package ticker
 
 import (
-	"errors"
 	"net/http"
 	"strconv"
 	"time"
@@ -33,7 +32,7 @@ func NewTickerHandler(tickerLimit int64, db *mdb.Database) *TickerHandler {
 }
 
 // Finds the timestamp of the latest added track in the database
-func (th *TickerHandler) findLatestTimestamp() (int64, error) {
+func findLatestTimestamp(db *mdb.Database) (int64, *router.Error) {
 	// Sort by timestamp in decsending order, and limit to one result
 	findopts := []findopt.Find{
 		findopt.Sort(bson.NewDocument(bson.EC.Int64("ts", -1))),
@@ -41,72 +40,58 @@ func (th *TickerHandler) findLatestTimestamp() (int64, error) {
 		findopt.Limit(1)}
 
 	tracks := make([]*mdb.Track, 0)
-	if err := th.db.Find(mdb.TRACKS, nil, findopts, &tracks); err != nil {
-		return -1, errors.New("Internal database error")
+	if err := db.Find(mdb.TRACKS, nil, findopts, &tracks); err != nil {
+		return -1, &router.Error{StatusCode: http.StatusInternalServerError, Message: "Internal database error"}
 	}
 	if len(tracks) < 1 {
-		return -1, errors.New("No tracks added yet")
+		return -1, &router.Error{StatusCode: http.StatusBadRequest, Message: "No tracks added yet"}
 	}
 
 	return tracks[0].Ts, nil
 }
 
 func (th *TickerHandler) GetLatestTimestamp(req *router.Request) {
-	ts, err := th.findLatestTimestamp()
+	ts, err := findLatestTimestamp(th.db)
 	if err != nil {
-		req.SendError(err.Error(), http.StatusBadRequest)
+		req.SendError(err)
 		return
 	}
 
 	req.SendText(strconv.FormatInt(ts, 10), http.StatusOK)
 }
 
-func ValidateTimestamp(variable string) (bool, interface{}) {
-	ts, err := strconv.ParseInt(variable, 10, 64)
-	if err != nil {
-		return false, nil
-	}
-	return true, ts
-}
-
-// GET /api/ticker
-func (th *TickerHandler) GetTicker(req *router.Request) {
-	// Check if there is a timestamp limit specified in the request
-	timestampLimit, ok := req.Vars["timestamp"]
-	if !ok {
-		timestampLimit = int64(0)
-	}
+func MakeTicker(db *mdb.Database, tickerLimit, timestampLimit int64) (*GetTickerResponse, *router.Error) {
+	ticker := new(GetTickerResponse)
 
 	// Measure time
 	start := time.Now()
 
-	// The response to send
-	ticker := new(GetTickerResponse)
-
 	// Get latest timestamp
-	latestTs, err := th.findLatestTimestamp()
+	latestTs, err := findLatestTimestamp(db)
 	if err != nil {
-		req.SendError(err.Error(), http.StatusBadRequest)
-		return
+		return nil, err
 	}
+
 	// Add latest timestamp to struct
 	ticker.TLatest = latestTs
 
-	// Sort by timestamp oldest first, set minimum value for timestamp, limit to 5 results
+	// Sort by timestamp oldest first, set minimum value for timestamp, limit results to tickerLimit, if it is over 0
 	findopts := []findopt.Find{
 		findopt.Projection(bson.NewDocument(bson.EC.Int64("ts", 1))),
 		findopt.Sort(bson.NewDocument(bson.EC.Int64("ts", 1))),
-		findopt.Max(bson.NewDocument(bson.EC.Int64("ts", timestampLimit.(int64)))),
-		findopt.Limit(th.tickerLimit)}
+		findopt.Max(bson.NewDocument(bson.EC.Int64("ts", timestampLimit)))}
 
+	if tickerLimit <= 0 {
+		findopts = append(findopts, findopt.Limit(tickerLimit))
+	}
+
+	// Retrieve the track timestamps from DB
 	tracks := make([]*mdb.Track, 0)
-	if err := th.db.Find(mdb.TRACKS, nil, findopts, &tracks); err != nil {
-		req.SendError("Internal database error", http.StatusInternalServerError)
-		return
+	if err := db.Find(mdb.TRACKS, nil, findopts, &tracks); err != nil {
+		return nil, &router.Error{StatusCode: http.StatusInternalServerError, Message: "Internal database error"}
 	}
 	if len(tracks) < 1 {
-		req.SendError("No more tracks", http.StatusBadRequest)
-		return
+		return nil, &router.Error{StatusCode: http.StatusBadRequest, Message: "No more tracks"}
 	}
 
 	// Add start and stop timestamps and IDs to struct
@@ -119,6 +104,22 @@ func (th *TickerHandler) GetTicker(req *router.Request) {
 
 	// Calculate time it took
 	ticker.Processing = int64(time.Since(start) / time.Millisecond)
+
+	return ticker, nil
+}
+
+// GET /api/ticker
+func (th *TickerHandler) GetTicker(req *router.Request) {
+	// Check if there is a timestamp limit specified in the request
+	timestampLimit, ok := req.Vars["timestamp"].(int64)
+	if !ok {
+		timestampLimit = 0
+	}
+
+	ticker, err := MakeTicker(th.db, th.tickerLimit, timestampLimit)
+	if err != nil {
+		req.SendError(err)
+	}
 
 	req.SendJSON(ticker, http.StatusOK)
 }

@@ -15,6 +15,11 @@ const (
 	TEXT
 )
 
+type Error struct {
+	StatusCode int    `json:"-"`
+	Message    string `json:"error"`
+}
+
 // Request contains the context of the HTTP request, it also has some helper methods
 type Request struct {
 	W    http.ResponseWriter
@@ -72,11 +77,8 @@ func (req *Request) ParseJSONRequest(jsonStruct interface{}) error {
 }
 
 // SendError sends a JSON error message in response to the request in case an error occured
-func (req *Request) SendError(message string, statusCode int) {
-	err := struct {
-		Error string `json:"error"`
-	}{Error: message}
-	req.SendJSON(&err, statusCode)
+func (req *Request) SendError(err *Error) {
+	req.SendJSON(err, err.StatusCode)
 }
 
 // Redirect redirects the request to another URL

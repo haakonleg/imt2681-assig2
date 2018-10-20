@@ -1,6 +1,9 @@
 package mdb
 
-import "github.com/mongodb/mongo-go-driver/bson/objectid"
+import (
+	"github.com/haakonleg/imt2681-assig2/util"
+	"github.com/mongodb/mongo-go-driver/bson/objectid"
+)
 
 // Webhook is the model of registered webhooks in the database
 // MinTriggerValue is the limit to how many new tracks are created before the webhook is notified
@@ -20,10 +23,11 @@ func CreateWebhook(webhookUrl string, minTriggerValue int64) Webhook {
 		minTriggerValue = 1
 	}
 
+	// Set webhook lastinvoked to current time (so only new tracks will be sent)
 	return Webhook{
 		ID:              objectid.New(),
 		WebhookURL:      webhookUrl,
 		MinTriggerValue: minTriggerValue,
 		TriggerCount:    minTriggerValue,
-		LastInvoked:     -1}
+		LastInvoked:     util.NowMilli()}
 }

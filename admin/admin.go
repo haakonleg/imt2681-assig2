@@ -22,7 +22,7 @@ func NewAdminHandler(db *mdb.Database) *AdminHandler {
 func (ah *AdminHandler) GetTrackCount(req *router.Request) {
 	tCnt, err := ah.db.Count(mdb.TRACKS)
 	if err != nil {
-		req.SendError("Internal database error", http.StatusInternalServerError)
+		req.SendError(&router.Error{StatusCode: http.StatusInternalServerError, Message: "Internal database error"})
 		return
 	}
 	req.SendText(strconv.FormatInt(tCnt, 10), http.StatusOK)
@@ -31,9 +31,9 @@ func (ah *AdminHandler) GetTrackCount(req *router.Request) {
 // DeleteAllTracks is a handler for DELETE /admin/api/tracks
 // It deletes all the registered tracks from the database
 func (ah *AdminHandler) DeleteAllTracks(req *router.Request) {
-	_, err := ah.db.Delete(mdb.TRACKS)
+	_, err := ah.db.Delete(mdb.TRACKS, nil)
 	if err != nil {
-		req.SendError("Internal database error", http.StatusInternalServerError)
+		req.SendError(&router.Error{StatusCode: http.StatusInternalServerError, Message: "Internal database error"})
 		return
 	}
 	req.SendText("Everything deleted", http.StatusOK)

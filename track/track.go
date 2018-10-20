@@ -25,15 +25,23 @@ type PostTrackResponse struct {
 }
 
 type TrackHandler struct {
-	db *mdb.Database
+	db                    *mdb.Database
+	trackRegisterCallback func(*mdb.Database)
 }
 
+// NewTrackHandler creates a new TrackHandler object
 func NewTrackHandler(db *mdb.Database) *TrackHandler {
 	return &TrackHandler{
 		db: db}
 }
 
-// GET /api/track
+// SetTrackRegisterCallback sets a callback function that will be called when a new track is
+// registered in the database
+func (th *TrackHandler) SetTrackRegisterCallback(f func(*mdb.Database)) {
+	th.trackRegisterCallback = f
+}
+
+// GetAllTracks is the handler for the API path GET /api/track
 // Returns an array of IDs of all tracks stored in the database
 func (th *TrackHandler) GetAllTracks(req *router.Request) {
 	// Only get the id
@@ -43,7 +51,7 @@ func (th *TrackHandler) GetAllTracks(req *router.Request) {
 	// Get all track IDs in database
 	tracks := make([]*mdb.Track, 0)
 	if err := th.db.Find(mdb.TRACKS, nil, findopts, &tracks); err != nil {
-		req.SendError("Internal database error", http.StatusInternalServerError)
+		req.SendError(&router.Error{StatusCode: http.StatusInternalServerError, Message: "Internal database error"})
 		return
 	}
 
@@ -71,7 +79,7 @@ func ValidateTrackID(variable string) (bool, interface{}) {
 	return true, variable
 }
 
-// GET /api/track/{id}
+// GetTrack is the handler for the API path GET /api/track/{id}
 // Retrieves a track by the value of its ObjectID (hex encoded string)
 func (th *TrackHandler) GetTrack(req *router.Request) {
 	id := req.Vars["id"].(string)
@@ -79,18 +87,18 @@ func (th *TrackHandler) GetTrack(req *router.Request) {
 	// Only get the requested track
 	objectID, err := objectid.FromHex(id)
 	if err != nil {
-		req.SendError("Invalid ID", http.StatusBadRequest)
+		req.SendError(&router.Error{StatusCode: http.StatusBadRequest, Message: "Invalid ID"})
 		return
 	}
 	filter := bson.NewDocument(bson.EC.ObjectID("_id", objectID))
 
 	tracks := make([]*mdb.Track, 0)
 	if err := th.db.Find(mdb.TRACKS, filter, nil, &tracks); err != nil {
-		req.SendError("Internal database error", http.StatusInternalServerError)
+		req.SendError(&router.Error{StatusCode: http.StatusInternalServerError, Message: "Internal database error"})
 		return
 	}
 	if len(tracks) < 1 {
-		req.SendError("Invalid ID", http.StatusBadRequest)
+		req.SendError(&router.Error{StatusCode: http.StatusBadRequest, Message: "Invalid ID"})
 		return
 	}
 
@@ -112,7 +120,8 @@ func ValidateTrackField(variable string) (bool, interface{}) {
 	return false, nil
 }
 
-// GET /api/track/{id}/{field}
+// GetTrackField is the handler for the API path GET /api/track/{id}/{field}
+// Returns a specified field within the track object from the database in plain text
 func (th *TrackHandler) GetTrackField(req *router.Request) {
 	id := req.Vars["id"].(string)
 	field := req.Vars["field"].(string)
@@ -126,31 +135,31 @@ func (th *TrackHandler) GetTrackField(req *router.Request) {
 
 	tracks := make([]*mdb.Track, 0)
 	if err := th.db.Find(mdb.TRACKS, filter, findopts, &tracks); err != nil {
-		req.SendError("Internal database error", http.StatusInternalServerError)
+		req.SendError(&router.Error{StatusCode: http.StatusInternalServerError, Message: "Internal database error"})
 		return
 	}
 	if len(tracks) < 1 {
-		req.SendError("Invalid ID", http.StatusBadRequest)
+		req.SendError(&router.Error{StatusCode: http.StatusBadRequest, Message: "Invalid ID"})
 		return
 	}
 
 	req.SendText(tracks[0].Field(field), http.StatusOK)
 }
 
-// POST /api/track
-// Register/upload a track
+// PostTrack is the handler for the API path POST /api/track
+// Register/upload a track using a URL to an IGC track resource
 func (th *TrackHandler) PostTrack(req *router.Request) {
 	request := new(PostTrackRequest)
 
 	// Get the JSON post request
 	if err := req.ParseJSONRequest(request); err != nil {
-		req.SendError("Error parsing JSON request", http.StatusBadRequest)
+		req.SendError(&router.Error{StatusCode: http.StatusBadRequest, Message: "Invalid JSON"})
 		return
 	}
 
 	// Check that the supplied link is valid
 	if valid := ensureIGCLink(request.URL); !valid {
-		req.SendError("This is not a valid IGC link", http.StatusBadRequest)
+		req.SendError(&router.Error{StatusCode: http.StatusBadRequest, Message: "This is not a valid IGC resource"})
 		return
 	}
 
@@ -158,7 +167,7 @@ func (th *TrackHandler) PostTrack(req *router.Request) {
 	igc, err := igc.ParseLocation(request.URL)
 	if err != nil {
 		fmt.Println(err)
-		req.SendError("Error parsing IGC track", http.StatusBadRequest)
+		req.SendError(&router.Error{StatusCode: http.StatusBadRequest, Message: "Error parsing IGC file"})
 		return
 	}
 
@@ -166,12 +175,18 @@ func (th *TrackHandler) PostTrack(req *router.Request) {
 	newTrack := mdb.CreateTrack(&igc, request.URL)
 	id, err := th.db.InsertObject(mdb.TRACKS, &newTrack)
 	if err != nil {
-		req.SendError("Internal database error", http.StatusInternalServerError)
+		req.SendError(&router.Error{StatusCode: http.StatusInternalServerError, Message: "Internal database error"})
 		return
 	}
 
+	// Send response
 	response := &PostTrackResponse{id}
 	req.SendJSON(response, http.StatusOK)
+
+	// Call the callback
+	if th.trackRegisterCallback != nil {
+		th.trackRegisterCallback(th.db)
+	}
 }
 
 // Ensures that a link points to an IGC resource (but just that it is a valid URL and has an igc extension)

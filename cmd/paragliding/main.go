@@ -1,34 +1,34 @@
 package main
 
 import (
+	"log"
 	"os"
-	"strings"
 
 	"github.com/haakonleg/imt2681-assig2/paragliding"
 )
 
 // API config
-const dbUser = "testuser1"
-const dbPass = "testpass1"
-const mongoURL = "mongodb://<dbuser>:<dbpassword>@ds223063.mlab.com:23063/imt2681-assig2"
-const dbName = "imt2681-assig2"
-
-const defaultPort = "8080"
+const (
+	dbName      = "imt2681-assig2"
+	defaultPort = "8080"
+)
 
 // Main starts the paragliding server by supplying the configuration options to the App object
 func main() {
-	url := strings.Replace(mongoURL, "<dbuser>", dbUser, 1)
-	url = strings.Replace(url, "<dbpassword>", dbPass, 1)
-
 	// Get port
 	port := os.Getenv("PORT")
 	if len(port) == 0 {
 		port = defaultPort
 	}
 
+	mongoURL := os.Getenv("PARAGLIDING_MONGO")
+	if len(mongoURL) == 0 {
+		log.Fatal("PARAGLIDING_MONGO environment variable is not set (put mongodb url in here)")
+	}
+
 	// Configure and start the API
 	app := paragliding.App{
-		MongoURL:    url,
+		MongoURL:    mongoURL,
 		ListenPort:  port,
 		DBName:      dbName,
 		TickerLimit: 5}
