@@ -92,6 +92,8 @@ func (rt *routeNode) resolveRoute(method string, path string) (*routeNode, []str
 			if ok {
 				vars = append(vars, tree.varNames[method])
 				vars = append(vars, p)
+			} else {
+				return nil, nil
 			}
 		}
 		currNode = tree
