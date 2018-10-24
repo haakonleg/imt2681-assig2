@@ -65,11 +65,11 @@ func invokeWebhook(webhook *mdb.Webhook, db *mdb.Database) {
 		request, _ = json.Marshal(ticker)
 	}
 
-	resp, err := http.Post(webhook.WebhookURL, "application/json", bytes.NewBuffer(request))
+	_, err := http.Post(webhook.WebhookURL, "application/json", bytes.NewBuffer(request))
 	if err != nil {
 		fmt.Println(err)
 	}
-	fmt.Printf("Invoked webhook %s. Status: %d", webhook.WebhookURL, resp.Status)
+	fmt.Printf("Invoked webhook %s", webhook.WebhookURL)
 }
 
 // GetWebhook is the handler for the API path GET /api/webhook/new_track/{webhook_id}
