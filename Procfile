@@ -1,1 +1,1 @@
-web: imt2681-assig2
+web: paragliding
