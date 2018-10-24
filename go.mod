@@ -1,5 +1,8 @@
 module github.com/haakonleg/imt2681-assig2
 
+// +heroku goVersion 1.11
+// +heroku install ./cmd/paragliding/
+
 require (
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/golang/snappy v0.0.0-20180518054509-2e65f85255db // indirect
